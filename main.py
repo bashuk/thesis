@@ -3,15 +3,15 @@
 
 """ Optimal trajectory builder (Alex Bashuk's thesis work)."""
 
-from copy import deepcopy
-from bisect import bisect_right
+import copy
+import bisect
 import numpy as np
 import matplotlib.pyplot as plt
 import random
 
 __author__ = "Alex Bashuk"
 __copyright__ = "Copyright (c) 2015 Alex Bashuk"
-__credits__ = ["Alex Bashuk"]
+__credits__ = "Alex Bashuk"
 __license__ = "MIT"
 __version__ = "1.0.0"
 __maintainer__ = "Alex Bashuk"
@@ -25,7 +25,6 @@ class SplineBuilder:
     function values in these points, and boundary conditions of first type
     given on left and right sides of the interval.
     """
-
     def __init__(self):
         # Amount of points
         self._n = 0
@@ -73,15 +72,14 @@ class SplineBuilder:
         Builds a spline.
         Source: http://matlab.exponenta.ru/spline/book1/12.php
         """
-
         if len(x) != len(y):
             raise ValueError("x and y have to be of the same size.")
         if len(x) < 2:
             raise ValueError("x must be at least of size 2.")
 
         self._n = len(x) - 1
-        self._x = deepcopy(x)
-        self._y = deepcopy(y)
+        self._x = copy.deepcopy(x)
+        self._y = copy.deepcopy(y)
 
         h = []
         for k in range(self._n):
@@ -111,7 +109,7 @@ class SplineBuilder:
         else:
             self._b = []
         
-        self._a = deepcopy(self._y)
+        self._a = copy.deepcopy(self._y)
         self._b = [der_left] + self._b + [der_right]
         self._c = []
         for k in range(0, self._n):
@@ -136,7 +134,6 @@ class SplineBuilder:
         """
         Calculates the value of a spline approximation in a given point.
         """
-
         if self._n == 0:
             raise Exception("Spline not built yet.")
         if x < self._x[0] or self._x[-1] < x:
@@ -145,7 +142,7 @@ class SplineBuilder:
         if x == self._x[-1]:
             return self._y[-1]
 
-        index = bisect_right(self._x, x) - 1
+        index = bisect.bisect_right(self._x, x) - 1
         x0 = self._x[index]
         a = self._a[index]
         b = self._b[index]
@@ -155,12 +152,56 @@ class SplineBuilder:
 
         return value
 
+class QualityFunctionBuilder:
+    """
+    Quality function builder class.
+    This class helps to load the terrain quality function Q(x, y) from file.
+    Also it provides methods for calculating the values of points between
+    the pixel centers.
+    """
+    def __init__(self):
+        # image weight and height
+        self._imw = 0
+        self._imh = 0
+        # terrain pixel data
+        self._im = []
+        # terrain weight and height
+        self.w = 0
+        self.h = 0
+
+    def load_from_image(self, filename):
+        """
+        Load quality function from image file.
+        Pixels with high values (white) correspond to bigger height on the
+        terrain.
+        This method sets terrain size to be equal to the image size.
+        To change the terrain size, use set_custom_terrain_size() method.
+        """
+        pass
+
+    def set_custom_terrain_size(self, w, h):
+        """
+        Sets custom terrain size (terrain sizes equals image size by default).
+        """
+        if w <= 0 or h <= 0:
+            raise ValueError("Terrain size must be positive.")
+        self.w = w
+        self.h = h
+
+    def Q(self, x, y):
+        """
+        Quality function, linearly interpolated from the image pixel values.
+        """
+        if self._w == 0:
+            raise Exception("Quality funcion not loaded yet.")
+        if x < 0 or x >= self.w or y < 0 or y >= self.y:
+            raise ValueError("Given point is out of the terrain.")
+
 class Tester:
     """
-    Tester class class.
+    Tester class.
     Contains methods for testing purposes.
     """
-
     def test_spline_builder(self, sample_size = 5):
         x = np.linspace(0, 2 * np.pi, 100)
         y = np.sin(x)
@@ -176,11 +217,8 @@ class Tester:
         plt.show()
 
 if __name__ == '__main__':
-    t = Tester()
-    t.test_spline_builder()
-
-
-
+    # Tester().test_spline_builder()
+    pass
 
 
 
