@@ -8,6 +8,7 @@ import bisect
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+import PIL
 
 __author__ = "Alex Bashuk"
 __copyright__ = "Copyright (c) 2015 Alex Bashuk"
@@ -128,8 +129,6 @@ class SplineBuilder:
         self._a = self._a[:-1]
         self._b = self._b[:-1]
 
-        # TODO: implement a, b, c, d computation
-
     def f(self, x):
         """
         Calculates the value of a spline approximation in a given point.
@@ -163,7 +162,7 @@ class QualityFunctionBuilder:
         # image weight and height
         self._imw = 0
         self._imh = 0
-        # terrain pixel data
+        # image data
         self._im = []
         # terrain weight and height
         self.w = 0
@@ -177,12 +176,22 @@ class QualityFunctionBuilder:
         This method sets terrain size to be equal to the image size.
         To change the terrain size, use set_custom_terrain_size() method.
         """
-        pass
+        im = PIL.Image.open(filename)
+        if im.mode != "L":
+            im = im.convert("L")
+        
+        pix = im.load()
+        self._imw, self._imh = im.size
+        self.w, self.h = im.size
+        self._im = [
+            [pix[x, y] for y in xrange(self._imh)] for x in xrange(self._imw)
+        ]
 
-    def set_custom_terrain_size(self, w, h):
+    def set_custom_terrain_size(self, size):
         """
-        Sets custom terrain size (terrain sizes equals image size by default).
+        Sets custom terrain size (terrain sizes equal image size by default).
         """
+        w, h = size
         if w <= 0 or h <= 0:
             raise ValueError("Terrain size must be positive.")
         self.w = w
@@ -196,6 +205,7 @@ class QualityFunctionBuilder:
             raise Exception("Quality funcion not loaded yet.")
         if x < 0 or x >= self.w or y < 0 or y >= self.y:
             raise ValueError("Given point is out of the terrain.")
+        # TODO: calculate the value
 
 class Tester:
     """
