@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 import PIL
+import os
 
 __author__ = "Alex Bashuk"
 __copyright__ = "Copyright (c) 2015 Alex Bashuk"
@@ -204,7 +205,13 @@ class QualityFunctionBuilder:
         if self._w == 0:
             raise Exception("Quality funcion not loaded yet.")
         if x < 0 or x >= self.w or y < 0 or y >= self.y:
-            raise ValueError("Given point is out of the terrain.")
+            # I thought of the exception here at first, but then I realised
+            # that splines can go beyond the road, and when calculating
+            # the quality for that spline – we don't want it to raise any
+            # exceptions, we just want it to make an enormously big jump
+            return - 10 ** 9
+            # raise ValueError("Given point is out of the terrain.")
+
         # TODO: calculate the value
 
 class Tester:
@@ -226,8 +233,16 @@ class Tester:
         plt.plot(x, y, 'b--', sub_x, sub_y, 'ro', x, z, 'g')
         plt.show()
 
+    def test_image_loading(self, filename = 'samples/2_holes.png'):
+        qfb = QualityFunctionBuilder()
+        qfb.load_from_image(filename)
+        print qfb.w, qfb.h
+        print qfb._im[0][0], qfb._im[400][100]
+        print qfb._im[220][170], qfb._im[625][50]
+
 if __name__ == '__main__':
     # Tester().test_spline_builder()
+    # Tester().test_image_loading()
     pass
 
 
