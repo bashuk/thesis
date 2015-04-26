@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import random
 import PIL
 import os
+import sys
 
 __author__ = "Alex Bashuk"
 __copyright__ = "Copyright (c) 2015 Alex Bashuk"
@@ -183,15 +184,40 @@ class QualityFunctionBuilder:
         
         pix = im.load()
         self._imw, self._imh = im.size
-        self.w, self.h = im.size
+        self.w, self.h = self._imw - 1, self._imh - 1
+        if self.w < 1 or self.h < 1:
+            self.__init__()
+            raise Exception("Image size should be at least 2x2.")
         self._im = [
             [pix[x, y] for y in xrange(self._imh)] for x in xrange(self._imw)
         ]
+
+    def _build_plane_by_3_points(self, p1, p2, p3):
+        """
+        Builds a plane that goes through three given points in 3-D space.
+        Plane is defined by equation: Ax + By + Cz + D = 0.
+        Coefficients A, B, C, D are returned as a result.
+        """
+        p1 = np.array(p1)
+        p2 = np.array(p2)
+        p3 = np.array(p3)
+
+        v1 = p1 - p3
+        v2 = p2 - p3
+        norm = np.cross(v1, v2)
+
+        A, B, C = map(float, norm)
+        D = float(- np.dot(norm, p3))
+
+        return A, B, C, D
 
     def set_custom_terrain_size(self, size):
         """
         Sets custom terrain size (terrain sizes equal image size by default).
         """
+        if self.w == 0:
+            raise Exception("You should load an image before setting size.")
+
         w, h = size
         if w <= 0 or h <= 0:
             raise ValueError("Terrain size must be positive.")
@@ -202,9 +228,10 @@ class QualityFunctionBuilder:
         """
         Quality function, linearly interpolated from the image pixel values.
         """
-        if self._w == 0:
+        if self.w == 0:
             raise Exception("Quality funcion not loaded yet.")
-        if x < 0 or x >= self.w or y < 0 or y >= self.y:
+
+        if x < 0 or x > self.w or y < 0 or y > self.h:
             # I thought of the exception here at first, but then I realised
             # that splines can go beyond the road, and when calculating
             # the quality for that spline – we don't want it to raise any
@@ -212,13 +239,47 @@ class QualityFunctionBuilder:
             return - 10 ** 9
             # raise ValueError("Given point is out of the terrain.")
 
-        # TODO: calculate the value
+        # Scaling
+        x = 1.0 * x * (self._imw - 1) / self.w
+        y = 1.0 * y  * (self._imh - 1) / self.h
+
+        # Handling boundaries
+        eps = 10 ** -5
+        if abs(x) < eps and x <= 0.0:
+            x += eps
+        if abs(x - (self._imw - 1)) < eps:
+            x -= eps
+        if abs(y) < eps and y <= 0.0:
+            y += eps
+        if abs(y - (self._imh - 1)) < eps:
+            y -= eps
+
+        # From now on, coordinates here must be strictly inside the image:
+        # 0.0 < x < _imw, 0.0 < y < _imh
+        p1 = (int(x) + 1, int(y))
+        p2 = (int(x), int(y) + 1)
+        if x - int(x) + y - int(y) <= 1.0:
+            p3 = (int(x), int(y))
+        else:
+            p3 = (int(x) + 1, int(y) + 1)
+        
+        p1 = (p1[0], p1[1], self._im[p1[0]][p1[1]])
+        p2 = (p2[0], p2[1], self._im[p2[0]][p2[1]])
+        p3 = (p3[0], p3[1], self._im[p3[0]][p3[1]])
+        a, b, c, d = self._build_plane_by_3_points(p1, p2, p3)
+
+        res = - (a * x + b * y + d) / c
+        return res
 
 class Tester:
     """
     Tester class.
     Contains methods for testing purposes.
     """
+    def _log(self, message):
+        print message
+        sys.stdout.flush()
+
     def test_spline_builder(self, sample_size = 5):
         x = np.linspace(0, 2 * np.pi, 100)
         y = np.sin(x)
@@ -240,9 +301,20 @@ class Tester:
         print qfb._im[0][0], qfb._im[400][100]
         print qfb._im[220][170], qfb._im[625][50]
 
+    def test_Q_calculation(self, filename = 'samples/2_holes.png'):
+        qfb = QualityFunctionBuilder()
+        qfb.load_from_image(filename)
+        qfb.set_custom_terrain_size((2403, 1993))
+        axis_x = np.linspace(0, 2403, 240)
+        axis_y = np.linspace(0, 1993, 199)
+        img = [[qfb.Q(x, y) for x in axis_x] for y in axis_y]
+        plt.imshow(img)
+        plt.show()
+
 if __name__ == '__main__':
     # Tester().test_spline_builder()
     # Tester().test_image_loading()
+    # Tester().test_Q_calculation()
     pass
 
 
