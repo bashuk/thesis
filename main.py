@@ -80,6 +80,9 @@ class SplineBuilder:
         if len(x) < 2:
             raise ValueError("x must be at least of size 2.")
 
+        x = map(float, x)
+        y = map(float, y)
+
         self._n = len(x) - 1
         self._x = copy.deepcopy(x)
         self._y = copy.deepcopy(y)
@@ -140,6 +143,8 @@ class SplineBuilder:
         if x < self._x[0] or self._x[-1] < x:
             raise ValueError("Given point is out of interval.")
 
+        x = float(x)
+
         if x == self._x[-1]:
             return self._y[-1]
 
@@ -167,30 +172,8 @@ class QualityFunctionBuilder:
         # image data
         self._im = []
         # terrain weight and height
-        self.w = 0
-        self.h = 0
-
-    def load_from_image(self, filename):
-        """
-        Load quality function from image file.
-        Pixels with high values (white) correspond to bigger height on the
-        terrain.
-        This method sets terrain size to be equal to the image size.
-        To change the terrain size, use set_custom_terrain_size() method.
-        """
-        im = PIL.Image.open(filename)
-        if im.mode != "L":
-            im = im.convert("L")
-        
-        pix = im.load()
-        self._imw, self._imh = im.size
-        self.w, self.h = self._imw - 1, self._imh - 1
-        if self.w < 1 or self.h < 1:
-            self.__init__()
-            raise Exception("Image size should be at least 2x2.")
-        self._im = [
-            [pix[x, y] for y in xrange(self._imh)] for x in xrange(self._imw)
-        ]
+        self.w = 0.0
+        self.h = 0.0
 
     def _build_plane_by_3_points(self, p1, p2, p3):
         """
@@ -211,6 +194,29 @@ class QualityFunctionBuilder:
 
         return A, B, C, D
 
+    def load_from_image(self, filename):
+        """
+        Load quality function from image file.
+        Pixels with high values (white) correspond to bigger height on the
+        terrain.
+        This method sets terrain size to be equal to the image size.
+        To change the terrain size, use set_custom_terrain_size() method.
+        """
+        im = PIL.Image.open(filename)
+        if im.mode != "L":
+            im = im.convert("L")
+        
+        pix = im.load()
+        self._imw, self._imh = im.size
+        self.w, self.h = float(self._imw - 1), float(self._imh - 1)
+        if self.w < 1 or self.h < 1:
+            self.__init__()
+            raise Exception("Image size should be at least 2x2.")
+        self._im = [
+            [float(pix[x, y]) for y in xrange(self._imh)] 
+            for x in xrange(self._imw)
+        ]
+
     def set_custom_terrain_size(self, size):
         """
         Sets custom terrain size (terrain sizes equal image size by default).
@@ -221,8 +227,8 @@ class QualityFunctionBuilder:
         w, h = size
         if w <= 0 or h <= 0:
             raise ValueError("Terrain size must be positive.")
-        self.w = w
-        self.h = h
+        self.w = float(w)
+        self.h = float(h)
 
     def Q(self, x, y):
         """
@@ -271,6 +277,93 @@ class QualityFunctionBuilder:
         res = - (a * x + b * y + d) / c
         return res
 
+class CarBuilder:
+    """
+    Simple class for containing car parameters.
+    """
+    def __init__(self, width = 17.1, length = 27.1, wheel = 3.15):
+        """
+        Default parameters (width = 17.1, length = 27.1, wheel = 3.15) are
+        the actual parameters of Bugatti Veyron 16.4, scale 1:10.
+        """
+        self.width = width
+        self.length = length
+        self.wheel = wheel
+
+class VehicleTrajectoryBuilder:
+    """
+    Vehicle Trajectory Builder.
+    This class builds the trajectory for a 4-wheels vehicle. Vehicle's movement
+    is defined by Ackermann steering geometry.
+    """
+    def __init__(self, qfb, car, fl = None, fr = None, dfl = None, dfr = None):
+        if type(qfb) != QualityFunctionBuilder:
+            raise TypeError("First argument must be a QFB.")
+
+        if type(qfb) != QualityFunctionBuilder:
+            raise TypeError("Second argument must be a car.")
+
+        # Helper classes
+        self._qfb = qfb
+        self._sb = SplineBuilder()
+        # Boundaries
+        self._fl = fl if fl is not None else qfb.h * 0.5
+        self._fr = fr if fr is not None else qfb.h * 0.5
+        self._dfl = dfl if dfl is not None else 0.0
+        self._dfr = dfr if dfr is not None else 0.0
+
+    def _generate_straight_trajectory(self, points):
+        """
+        Configures the spline so that it corresponds to simplest straight 
+        movement.
+        """
+        pass
+
+    def _generate_random_trajectory(self, points):
+        """
+        Configures the spline so that it defines some random trajectory.
+        """
+        pass
+
+    def _quality_along_trajectory(self, step):
+        """
+        Calculates the quality of current trajectory (defined by spline).
+        """
+        pass
+
+    def train_trajectory(self, points = 100, step = None):
+        """
+        Trains the spline so that it has the best quality.
+        """
+        if step is None:
+            step = self._qfb.w / points / 10
+        pass
+
+    def f(self, x):
+        """
+        Returns the values of trajectory function.
+        """
+        pass
+
+    def save_to_file(self, filename):
+        """
+        Saves an image of the terrain combined with the trajectory curves.
+        """
+        pass
+
+def main(filename):
+    qfb = QualityFunctionBuilder()
+    qfb.load_from_image(filename)
+    car = CarBuilder()
+
+    vtb = VehicleTrajectoryBuilder(qfb, car)
+    vtb.train_trajectory()
+
+    f = filename.split('.')
+    f.insert(-1, 'solved')
+    new_filename = '.'.join(f)
+    vtb.save_to_file(new_filename)
+
 class Tester:
     """
     Tester class.
@@ -315,7 +408,8 @@ if __name__ == '__main__':
     # Tester().test_spline_builder()
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
-    pass
+    main('samples/2_holes.png')
+
 
 
 
