@@ -188,7 +188,7 @@ class SplineBuilder:
 
         return der
 
-    @profilehooks.profile
+    # @profilehooks.profile
     def split_by_length(self, milestones, integration_pieces = 100):
         """
         Splits calculated spline into m pieces, equal by lenght.
@@ -212,10 +212,13 @@ class SplineBuilder:
         self.m = []
         wanted = mile
         for i in range(N):
-            if abs(l[i + 1] - wanted) > abs(l[i] - wanted):
-                self.m.append(x[2 * (i + 1)])
+            if l[i] <= wanted and wanted < l[i + 1]:
+                # alpha == 1.0 means left, alpha == 0.0 means right
+                alpha = (l[i + 1] - wanted) / (l[i + 1] - l[i])
+                self.m.append(alpha * x[2 * i] + (1.0 - alpha) * x[2 * (i + 1)])
                 wanted += mile
-        self.m.append(x[-1])
+        if len(self.m) == M - 1:
+            self.m.append(x[-1])
 
         if len(self.m) != M:
             raise Exception("Ooops... I think we didn't manage to split it.")
@@ -437,14 +440,14 @@ class Tester:
         plt.show()
 
     def test_spline_split_by_length(self, split_pieces = 5):
-        x = np.linspace(0, 6 * np.pi, 100)
+        x = np.linspace(0, 2 * np.pi, 500)
         y = np.sin(x)
 
         sb = SplineBuilder()
         sb.build(x, y, 1.0, 1.0)
         z = [sb.f(point) for point in x]
 
-        sb.split_by_length(split_pieces, 500)
+        sb.split_by_length(split_pieces, 100)
         mx = [x[0]] + sb.m
         my = np.sin(mx)
 
@@ -484,7 +487,7 @@ def main(filename):
 if __name__ == '__main__':
     # print "Python loaded. Let's rock!"
     # Tester().test_spline_builder()
-    # Tester().test_spline_split_by_length(3)
+    Tester().test_spline_split_by_length(5)
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
     # main('samples/2_holes.png')
