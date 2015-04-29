@@ -12,6 +12,7 @@ import PIL
 import os
 import sys
 import math
+import profilehooks
 
 __author__ = "Alex Bashuk"
 __copyright__ = "Copyright (c) 2015 Alex Bashuk"
@@ -187,6 +188,7 @@ class SplineBuilder:
 
         return der
 
+    @profilehooks.profile
     def split_by_length(self, milestones, integration_pieces = 100):
         """
         Splits calculated spline into m pieces, equal by lenght.
@@ -442,7 +444,7 @@ class Tester:
         sb.build(x, y, 1.0, 1.0)
         z = [sb.f(point) for point in x]
 
-        sb.split_by_length(split_pieces, 5000)
+        sb.split_by_length(split_pieces, 500)
         mx = [x[0]] + sb.m
         my = np.sin(mx)
 
