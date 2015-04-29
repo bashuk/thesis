@@ -11,6 +11,7 @@ import random
 import PIL
 import os
 import sys
+import math
 
 __author__ = "Alex Bashuk"
 __copyright__ = "Copyright (c) 2015 Alex Bashuk"
@@ -39,6 +40,8 @@ class SplineBuilder:
         self._b = []
         self._c = []
         self._d = []
+        # Spline milestones
+        self.m = []
 
     def _tdma_solve(self, a, b, c, d):
         """
@@ -146,9 +149,10 @@ class SplineBuilder:
         x = float(x)
 
         if x == self._x[-1]:
-            return self._y[-1]
+            index = self._n - 1
+        else:
+            index = bisect.bisect_right(self._x, x) - 1
 
-        index = bisect.bisect_right(self._x, x) - 1
         x0 = self._x[index]
         a = self._a[index]
         b = self._b[index]
@@ -157,6 +161,62 @@ class SplineBuilder:
         value = a + b * (x - x0) + c * (x - x0) ** 2 + d * (x - x0) ** 3
 
         return value
+
+    def der_f(self, x):
+        """
+        Calculates the derivative of spline approximation in a given point.
+        """
+        if self._n == 0:
+            raise Exception("Spline not built yet.")
+        if x < self._x[0] or self._x[-1] < x:
+            raise ValueError("Given point is out of interval.")
+
+        x = float(x)
+
+        if x == self._x[-1]:
+            index = self._n - 1
+        else:
+            index = bisect.bisect_right(self._x, x) - 1
+
+        x0 = self._x[index]
+        a = self._a[index]
+        b = self._b[index]
+        c = self._c[index]
+        d = self._d[index]
+        der = b * (x - x0) + 2.0 * c * (x - x0) + 3.0 * d * (x - x0) ** 2
+
+        return der
+
+    def split_by_length(self, milestones, integration_pieces = 100):
+        """
+        Splits calculated spline into m pieces, equal by lenght.
+        """
+        M = milestones
+        N = integration_pieces
+
+        x = np.linspace(self._x[0], self._x[-1], 2 * N + 1)
+        y = map(lambda x: math.sqrt(1.0 + self.der_f(x) ** 2), x)
+
+        l = [0.0]
+        for i in range(N):
+            intgr = (x[2 * i + 2] - x[2 * i]) / 6.0 * \
+                (y[2 * i] + 4.0 * y[2 * i + 1] + y[2 * i + 2])
+            l.append(intgr)
+
+        for i in range(1, len(l)):
+            l[i] = l[i] + l[i - 1]
+
+        mile = l[-1] / M
+        self.m = []
+        wanted = mile
+        for i in range(N):
+            if abs(l[i + 1] - wanted) > abs(l[i] - wanted):
+                self.m.append(x[2 * (i + 1)])
+                wanted += mile
+        self.m.append(x[-1])
+
+        if len(self.m) != M:
+            raise Exception("Ooops... I think we didn't manage to split it.")
 
 class QualityFunctionBuilder:
     """
@@ -351,19 +411,6 @@ class VehicleTrajectoryBuilder:
         """
         pass
 
-def main(filename):
-    qfb = QualityFunctionBuilder()
-    qfb.load_from_image(filename)
-    car = CarBuilder()
-
-    vtb = VehicleTrajectoryBuilder(qfb, car)
-    vtb.train_trajectory()
-
-    f = filename.split('.')
-    f.insert(-1, 'solved')
-    new_filename = '.'.join(f)
-    vtb.save_to_file(new_filename)
-
 class Tester:
     """
     Tester class.
@@ -381,10 +428,25 @@ class Tester:
         sub_y = np.sin(sub_x)
 
         sb = SplineBuilder()
-        sb.build(sub_x, sub_y, -1.0, -1.0)
+        sb.build(sub_x, sub_y, 1.0, 1.0)
         z = [sb.f(point) for point in x]
 
         plt.plot(x, y, 'b--', sub_x, sub_y, 'ro', x, z, 'g')
+        plt.show()
+
+    def test_spline_split_by_length(self, split_pieces = 5):
+        x = np.linspace(0, 6 * np.pi, 100)
+        y = np.sin(x)
+
+        sb = SplineBuilder()
+        sb.build(x, y, 1.0, 1.0)
+        z = [sb.f(point) for point in x]
+
+        sb.split_by_length(split_pieces, 5000)
+        mx = [x[0]] + sb.m
+        my = np.sin(mx)
+
+        plt.plot(x, y, 'b--', x, z, 'g', mx, my, 'ro')
         plt.show()
 
     def test_image_loading(self, filename = 'samples/2_holes.png'):
@@ -404,11 +466,27 @@ class Tester:
         plt.imshow(img)
         plt.show()
 
+def main(filename):
+    qfb = QualityFunctionBuilder()
+    qfb.load_from_image(filename)
+    car = CarBuilder()
+
+    vtb = VehicleTrajectoryBuilder(qfb, car)
+    vtb.train_trajectory()
+
+    f = filename.split('.')
+    f.insert(-1, 'solved')
+    new_filename = '.'.join(f)
+    vtb.save_to_file(new_filename)
+
 if __name__ == '__main__':
+    # print "Python loaded. Let's rock!"
     # Tester().test_spline_builder()
+    # Tester().test_spline_split_by_length(3)
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
-    main('samples/2_holes.png')
+    # main('samples/2_holes.png')
+    pass
 
 
 
