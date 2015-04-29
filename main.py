@@ -196,7 +196,7 @@ class SplineBuilder:
         M = milestones
         N = integration_pieces
 
-        x = np.linspace(self._x[0], self._x[-1], 2 * N + 1)
+        x = map(float, np.linspace(self._x[0], self._x[-1], 2 * N + 1))
         y = map(lambda x: math.sqrt(1.0 + self.der_f(x) ** 2), x)
 
         l = [0.0]
@@ -365,56 +365,76 @@ class VehicleTrajectoryBuilder:
         if type(qfb) != QualityFunctionBuilder:
             raise TypeError("First argument must be a QFB.")
 
-        if type(qfb) != QualityFunctionBuilder:
+        if type(car) != CarBuilder:
             raise TypeError("Second argument must be a car.")
 
         # Helper classes
         self._qfb = qfb
+        self._car = car
         self._sb = SplineBuilder()
+        # Terrain parameters
+        self._w = qfb.w
+        self._h = qfb.h
         # Boundaries
         self._fl = fl if fl is not None else qfb.h * 0.5
         self._fr = fr if fr is not None else qfb.h * 0.5
         self._dfl = dfl if dfl is not None else 0.0
         self._dfr = dfr if dfr is not None else 0.0
+        # Trained flag
+        self._trained = False
 
     def _generate_straight_trajectory(self, points):
         """
         Configures the spline so that it corresponds to simplest straight 
         movement.
         """
-        pass
+        x = map(float, np.linspace(0.0, self._w, points + 1))
+        y = [self._h / 2.0 for i in xrange(points + 1)]
+        y[0] = self._fl
+        y[points] = self._fr
+        self._sb.build(x, y, self._dfl, self._dfr)
 
     def _generate_random_trajectory(self, points):
         """
         Configures the spline so that it defines some random trajectory.
         """
-        pass
+        margin = (self._car.width + self._car.wheel) / 2.0
+        x = map(float, np.linspace(0.0, self._w, points + 1))
+        y = [random.uniform(0.0 + margin, self._h - margin) 
+            for i in xrange(points + 1)]
+        y[0] = self._fl
+        y[points] = self._fr
+        self._sb.build(x, y, self._dfl, self._dfr)
 
     def _quality_along_trajectory(self, step):
         """
         Calculates the quality of current trajectory (defined by spline).
         """
-        pass
+        pass # TODO
 
-    def train_trajectory(self, points = 100, step = None):
+    def train_trajectory(self, points = 100, milestones = None):
         """
         Trains the spline so that it has the best quality.
         """
         if step is None:
             step = self._qfb.w / points / 10
-        pass
+        self._trained = True
+        pass # TODO
 
     def f(self, x):
         """
         Returns the values of trajectory function.
         """
-        pass
+        if not(self._trained):
+            raise Exception("Trajectory is not yet trained.")
+
+        return self._sb.f(x)
 
     def save_to_file(self, filename):
         """
         Saves an image of the terrain combined with the trajectory curves.
         """
-        pass
+        pass # TODO
 
 class Tester:
     """
@@ -495,7 +515,7 @@ if __name__ == '__main__':
 
 
 
-
+# TODO: implement argument validations for ALL methods
 
 
 
