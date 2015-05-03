@@ -159,7 +159,7 @@ class SplineBuilder:
         b = self._b[index]
         c = self._c[index]
         d = self._d[index]
-        value = a + b * (x - x0) + c * (x - x0) ** 2 + d * (x - x0) ** 3
+        value = float(a + b * (x - x0) + c * (x - x0) ** 2 + d * (x - x0) ** 3)
 
         return value
 
@@ -362,11 +362,12 @@ class VehicleTrajectoryBuilder:
     is defined by Ackermann steering geometry.
     """
     def __init__(self, qfb, car, fl = None, fr = None, dfl = None, dfr = None):
-        if type(qfb) != QualityFunctionBuilder:
-            raise TypeError("First argument must be a QFB.")
+        # TODO: class validation? :( [gives type 'instance']
+        # if type(qfb) != QualityFunctionBuilder:
+        #     raise TypeError("First argument must be a QFB.")
 
-        if type(car) != CarBuilder:
-            raise TypeError("Second argument must be a car.")
+        # if type(car) != CarBuilder:
+        #     raise TypeError("Second argument must be a car.")
 
         # Helper classes
         self._qfb = qfb
@@ -430,11 +431,38 @@ class VehicleTrajectoryBuilder:
 
         return self._sb.f(x)
 
-    def save_to_file(self, filename):
+    def save_to_file(self, filename, scale = 1):
         """
         Saves an image of the terrain combined with the trajectory curves.
         """
-        pass # TODO
+        w, h = int(self._w * scale), int(self._h * scale)
+        im = PIL.Image.new("RGB", (w, h))
+        pix = im.load()
+
+        # Drawing the quality of the terrain
+        for i in xrange(w):
+            for j in xrange(h):
+                px, py = i * 1.0 / scale, j * 1.0 / scale
+                R, G, B = [int(self._qfb.Q(px, py))] * 3
+                pix[i, j] = (R, G, B)
+
+        # Drawing the trajectory
+        alpha = 0.7
+        for i in xrange(w):
+            x = i * 1.0 / scale
+            y = self._sb.f(x)
+
+            j0 = int(y * scale)
+            low = max(0, j0)
+            high = min(h, j0 + 1)
+            for j in range(low, high):
+                R, G, B = pix[i, j]
+                R = int(alpha * 0   + (1.0 - alpha) * R)
+                G = int(alpha * 255 + (1.0 - alpha) * G)
+                B = int(alpha * 0   + (1.0 - alpha) * B)
+                pix[i, j] = (R, G, B)
+
+        im.save(filename)
 
 class Tester:
     """
@@ -491,6 +519,14 @@ class Tester:
         plt.imshow(img)
         plt.show()
 
+    def test_trajectory_drawing(self, filename = 'samples/2_holes.png'):
+        qfb = QualityFunctionBuilder()
+        qfb.load_from_image(filename)
+        car = CarBuilder()
+        vtb = VehicleTrajectoryBuilder(qfb, car)
+        vtb._generate_random_trajectory(10)
+        vtb.save_to_file('samples/result.png')
+
 def main(filename):
     qfb = QualityFunctionBuilder()
     qfb.load_from_image(filename)
@@ -507,9 +543,11 @@ def main(filename):
 if __name__ == '__main__':
     # print "Python loaded. Let's rock!"
     # Tester().test_spline_builder()
-    Tester().test_spline_split_by_length(5)
+    # Tester().test_spline_split_by_length(5)
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
+    Tester().test_trajectory_drawing()
+
     # main('samples/2_holes.png')
     pass
 
