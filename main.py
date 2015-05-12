@@ -492,38 +492,45 @@ class VehicleTrajectoryBuilder:
 
         # Choosing from given number of random trajectories
         self._generate_straight_trajectory(points, miles_per_point)
-        # TODO 2: make more initial trajectories
-        for iteration in xrange(10):
-            x, y = self._generate_random_trajectory(
-                points, miles_per_point, False)
-            self._try_alternative_trajectory(x, y, miles)
-            print "Init iter = {}, quality = {}".format(iteration, self._qat)
+        x = copy.deepcopy(self._sb._x)
+        best_qat = self._qat
+        best_y = copy.deepcopy(self._sb._y)
 
-        # These two parameters define the process of optimization
-        # Also, they define the number of iterations
-        jump_step = self._qfb.h
-        threshold = 1.0
+        for attempt in xrange(10):
+            # These two parameters define the process of optimization
+            # Also, they define the number of iterations
+            jump_step = self._qfb.h
+            threshold = 1.0
 
-        while jump_step > threshold:
-            for point in xrange(1, points):
-                x = copy.deepcopy(self._sb._x)
-                y = copy.deepcopy(self._sb._y)
-                init_point_y = y[point]
-                upd = False
+            self._generate_random_trajectory(points, miles_per_point)
+            while jump_step > threshold:
+                for point in xrange(1, points):
+                    y = copy.deepcopy(self._sb._y)
+                    init_point_y = y[point]
 
-                # trying to jump up
-                y[point] = init_point_y + jump_step
-                upd = upd or self._try_alternative_trajectory(x, y, miles)
-                # trying to jump down
-                y[point] = init_point_y - jump_step
-                upd = upd or self._try_alternative_trajectory(x, y, miles)
+                    # trying to jump up
+                    y[point] = init_point_y + jump_step
+                    self._try_alternative_trajectory(x, y, miles)
+                    # trying to jump down
+                    y[point] = init_point_y - jump_step
+                    self._try_alternative_trajectory(x, y, miles)
 
-                if upd:
-                    print "Jump = {}, quality = {}".format(jump_step, self._qat)
+                    sys.stdout.write(
+                        "\rAttempt #{}: jump = {}, quality = {}".format(
+                        attempt + 1, jump_step, self._qat))
+                    sys.stdout.flush()
                     # self.show()
-            jump_step *= 0.5
+                jump_step *= 0.5
+            sys.stdout.write("\n")
 
+            if self._qat > best_qat:
+                best_qat = self._qat
+                best_y = copy.deepcopy(self._sb._y)
+
+        self._qat = best_qat
+        self._sb.build(x, best_y, self._dfl, self._dfr)
         self._trained = True
+        print 'Best: {}'.format(best_qat)
 
     def f(self, x):
         """
@@ -681,7 +688,7 @@ class Tester:
 
     def test_train_trajectory(self):
         qfb = QualityFunctionBuilder()
-        qfb.load_from_image('samples/many_holes.png')
+        qfb.load_from_image('samples/1_bumper.png')
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
         
@@ -718,7 +725,7 @@ if __name__ == '__main__':
 # TODO 3: implement various checks and validations for ALL methods
 # TODO 3: make global constants (parameters of the algo)
 # TODO 3: add information messages to console
-
+# TODO 3: optimize code
 
 
 
