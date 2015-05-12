@@ -682,7 +682,7 @@ class Tester:
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
         
-        vtb.train_trajectory()
+        vtb.train_trajectory(12)
         vtb.show()
         vtb.save_to_file('samples/result.png')
 
