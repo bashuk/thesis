@@ -433,6 +433,26 @@ class VehicleTrajectoryBuilder:
 
         return x, y
 
+    def _try_alternative_trajectory(self, new_x, new_y, miles, force = False):
+        """
+        Tries alternative trajectory.
+        If the quality along the new trajectory is higher, or if forced,
+        the spline is rebuilt along the new trajectory.
+        Otherwise, the spline is not changed.
+        Return True if the spline was changed, False otherwise.
+        """
+        cur_x = copy.deepcopy(self._sb._x)
+        cur_y = copy.deepcopy(self._sb._y)
+
+        self._sb.build(new_x, new_y, self._dfl, self._dfr)
+        new_qat = self._quality_along_trajectory(miles)
+        if new_qat > self._qat or force:
+            self._qat = new_qat
+            return True
+        else:
+            self._sb.build(cur_x, cur_y, self._dfl, self._dfr)
+            return False
+
     def _quality_along_trajectory(self, miles):
         """
         Calculates the quality of current trajectory (defined by spline).
@@ -460,29 +480,9 @@ class VehicleTrajectoryBuilder:
         # The more - the better.
         # Q1: [0.0 .. miles]
         # Q2: [qfb.w .. sinusoidal_length]
-        res = 100.0 * Q1 - Q2 / self._qfb.w * miles
+        res = Q1 - Q2 / self._qfb.w * miles * 1.0
 
         return res
-
-    def _try_alternative_trajectory(self, new_x, new_y, miles, force = False):
-        """
-        Tries alternative trajectory.
-        If the quality along the new trajectory is higher, or if forced,
-        the spline is rebuilt along the new trajectory.
-        Otherwise, the spline is not changed.
-        Return True if the spline was changed, False otherwise.
-        """
-        cur_x = copy.deepcopy(self._sb._x)
-        cur_y = copy.deepcopy(self._sb._y)
-
-        self._sb.build(new_x, new_y, self._dfl, self._dfr)
-        new_qat = self._quality_along_trajectory(miles)
-        if new_qat > self._qat or force:
-            self._qat = new_qat
-            return True
-        else:
-            self._sb.build(cur_x, cur_y, self._dfl, self._dfr)
-            return False
 
     def train_trajectory(self, points = 10, miles_per_point = 10):
         """
@@ -520,7 +520,7 @@ class VehicleTrajectoryBuilder:
                 if upd:
                     print "Jump = {}, quality = {}".format(jump_step, self._qat)
                     # self.show()
-            jump_step /= 2.0
+            jump_step *= 0.75
 
         self._trained = True
 
@@ -565,7 +565,7 @@ class VehicleTrajectoryBuilder:
         for i in xrange(w):
             for j in xrange(h):
                 px, py = i * 1.0 / scale, j * 1.0 / scale
-                R, G, B = [int(self._qfb.Q(px, py))] * 3
+                R, G, B = [int(self._qfb.Q(px, py) * 255.0)] * 3
                 pix[i, j] = (R, G, B)
 
         # Drawing the trajectory
@@ -678,24 +678,13 @@ class Tester:
 
     def test_train_trajectory(self):
         qfb = QualityFunctionBuilder()
-        qfb.load_from_image('samples/2_holes.png')
+        qfb.load_from_image('samples/1_massive_hole.png')
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
         
         vtb.train_trajectory()
-        
-        axis_x = np.linspace(0, qfb.w, qfb.w)
-        axis_y = np.linspace(0, qfb.h, qfb.h)
-        img = [[vtb.Q(x, y) for x in axis_x] for y in axis_y]
-        plt.imshow(img)
-
-        x = np.linspace(0, qfb.w, qfb.w)
-        y = [vtb.f(xi) for xi in x]
-        plt.plot(x, y, 'g')
-
-        plt.plot(vtb._sb._x, vtb._sb._y, 'bo')
-
-        plt.show()
+        vtb.show()
+        vtb.save_to_file('samples/result.png')
 
 def main(filename):
     qfb = QualityFunctionBuilder()
