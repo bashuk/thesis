@@ -282,7 +282,7 @@ class QualityFunctionBuilder:
             self.__init__()
             raise Exception("Image size should be at least 2x2.")
         self._im = [
-            [float(pix[x, y]) for y in xrange(self._imh)] 
+            [float(pix[x, y]) / 256.0 for y in xrange(self._imh)] 
             for x in xrange(self._imw)
         ]
 
@@ -404,19 +404,28 @@ class VehicleTrajectoryBuilder:
         y[points] = self._fr
         self._sb.build(x, y, self._dfl, self._dfr)
 
-    def _quality_along_trajectory(self, step):
+    def _quality_along_trajectory(self, miles):
         """
         Calculates the quality of current trajectory (defined by spline).
         """
-        pass # TODO 1
+        # Currently computing as a line integral of a Q as a scalar field.
+        # TODO 2: Implement wheels and integration over Q'.
+        self._sb.split_by_length(miles)
 
-    def train_trajectory(self, points = 10, miles_per_point = None):
+        # method of right rectangles
+        res = 0.0
+        for i in xrange(1, len(self._sb.mile)):
+            xi = self._sb.mile[i]
+            yi = self._sb.f(xi)
+            Qi = self._qfb.Q(xi, yi)
+            res += self._sb.mile_length * Qi
+
+        return res
+
+    def train_trajectory(self, points = 10, miles_per_point = 10):
         """
         Trains the spline so that it has the best quality.
         """
-        if miles_per_point is None:
-            miles_per_point = 10
-        mpp = miles_per_point
         miles = points * miles_per_point
 
         self._generate_random_trajectory(points)
