@@ -492,7 +492,7 @@ class VehicleTrajectoryBuilder:
 
         # Choosing from given number of random trajectories
         self._generate_straight_trajectory(points, miles_per_point)
-        for iteration in xrange(1):
+        for iteration in xrange(100):
             x, y = self._generate_random_trajectory(
                 points, miles_per_point, False)
             self._try_alternative_trajectory(x, y, miles)
