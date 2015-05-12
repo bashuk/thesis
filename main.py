@@ -225,6 +225,7 @@ class SplineBuilder:
         self.mile_length = mile_length
 
         if len(self.mile) != M + 1:
+            print l
             raise Exception("Ooops... I think we didn't manage to split it.")
 
 class QualityFunctionBuilder:
@@ -378,10 +379,13 @@ class VehicleTrajectoryBuilder:
         self._fr = fr if fr is not None else qfb.h * 0.5
         self._dfl = dfl if dfl is not None else 0.0
         self._dfr = dfr if dfr is not None else 0.0
+        # Quality along trajectory
+        self._qat = - 10 ** 9
         # Trained flag
         self._trained = False
 
-    def _generate_straight_trajectory(self, points):
+    def _generate_straight_trajectory(self, points, miles_per_point = 10,
+        rebuild_spline = True):
         """
         Configures the spline so that it corresponds to simplest straight 
         movement.
@@ -390,9 +394,16 @@ class VehicleTrajectoryBuilder:
         y = [self._h / 2.0 for i in xrange(points + 1)]
         y[0] = self._fl
         y[points] = self._fr
-        self._sb.build(x, y, self._dfl, self._dfr)
 
-    def _generate_random_trajectory(self, points):
+        if rebuild_spline:
+            self._sb.build(x, y, self._dfl, self._dfr)
+            miles = points * miles_per_point
+            self._qat = self._quality_along_trajectory(miles)
+
+        return x, y
+
+    def _generate_random_trajectory(self, points, miles_per_point = 10,
+        rebuild_spline = True):
         """
         Configures the spline so that it defines some random trajectory.
         """
@@ -402,26 +413,64 @@ class VehicleTrajectoryBuilder:
             for i in xrange(points + 1)]
         y[0] = self._fl
         y[points] = self._fr
-        self._sb.build(x, y, self._dfl, self._dfr)
+        
+        if rebuild_spline:
+            self._sb.build(x, y, self._dfl, self._dfr)
+            miles = points * miles_per_point
+            self._qat = self._quality_along_trajectory(miles)
+
+        return x, y
 
     def _quality_along_trajectory(self, miles):
         """
         Calculates the quality of current trajectory (defined by spline).
         """
-        # Currently computing as a line integral of a Q as a scalar field.
         # TODO 2: Implement wheels and integration over Q'.
         self._sb.split_by_length(miles)
 
-        # method of right rectangles
-        res = 0.0
+        # Q1 is integral over quality function. 
+        # This corresponds to quality of the road. 
+        # The more - the better.
+        # Implemented with the method of right rectangles
+        Q1 = 0.0
         for i in xrange(1, len(self._sb.mile)):
             xi = self._sb.mile[i]
             yi = self._sb.f(xi)
             Qi = self._qfb.Q(xi, yi)
-            # res += self._sb.mile_length * Qi
-            res += Qi
+            Q1 += Qi
+
+        # Q2 is the integral over constant scalar field.
+        # This corresponds to the length of the trajectory. 
+        # The less - the better.
+        Q2 = miles * self._sb.mile_length
+
+        # Total quality along the trajectory.
+        # The more - the better.
+        # Q1: [0.0 .. miles]
+        # Q2: [qfb.w .. sinusoidal_length]
+        res = 100.0 * Q1 - Q2 / self._qfb.w * miles
 
         return res
+
+    def _try_alternative_trajectory(self, new_x, new_y, miles, force = False):
+        """
+        Tries alternative trajectory.
+        If the quality along the new trajectory is higher, or if forced,
+        the spline is rebuilt along the new trajectory.
+        Otherwise, the spline is not changed.
+        Return True if the spline was changed, False otherwise.
+        """
+        cur_x = copy.deepcopy(self._sb._x)
+        cur_y = copy.deepcopy(self._sb._y)
+
+        self._sb.build(new_x, new_y, self._dfl, self._dfr)
+        new_qat = self._quality_along_trajectory(miles)
+        if new_qat > self._qat or force:
+            self._qat = new_qat
+            return True
+        else:
+            self._sb.build(cur_x, cur_y, self._dfl, self._dfr)
+            return False
 
     def train_trajectory(self, points = 10, miles_per_point = 10):
         """
@@ -429,13 +478,37 @@ class VehicleTrajectoryBuilder:
         """
         miles = points * miles_per_point
 
-        self._generate_random_trajectory(points)
-        # For now, the number of iterations is fixed.
-        # The stopping condition should be added here to avoid this.
-        # TODO 2: implement stopping condition
-        for iteration in xrange(10):
-            # TODO 1: implement training step
-            pass
+        # Choosing from given number of random trajectories
+        self._generate_straight_trajectory(points, miles_per_point)
+        for iteration in xrange(1):
+            x, y = self._generate_random_trajectory(
+                points, miles_per_point, False)
+            self._try_alternative_trajectory(x, y, miles)
+            print "Init iter = {}, quality = {}".format(iteration, self._qat)
+
+        # These two parameters define the process of optimization
+        # Also, they define the number of iterations
+        jump_step = self._qfb.h
+        threshold = 1.0
+
+        while jump_step > threshold:
+            for point in xrange(1, points):
+                x = copy.deepcopy(self._sb._x)
+                y = copy.deepcopy(self._sb._y)
+                init_point_y = y[point]
+                upd = False
+
+                # trying to jump up
+                y[point] = init_point_y + jump_step
+                upd = upd or self._try_alternative_trajectory(x, y, miles)
+                # trying to jump down
+                y[point] = init_point_y - jump_step
+                upd = upd or self._try_alternative_trajectory(x, y, miles)
+
+                if upd:
+                    print "Jump = {}, quality = {}".format(jump_step, self._qat)
+                    # self.show()
+            jump_step /= 2.0
 
         self._trained = True
 
@@ -450,6 +523,23 @@ class VehicleTrajectoryBuilder:
         Returns the values of quality function.
         """
         return self._qfb.Q(x, y)
+
+    def show(self):
+        """
+        Show quality function and current trajectory.
+        """
+        Q_x = np.linspace(0, self._qfb.w, self._qfb.w)
+        Q_y = np.linspace(0, self._qfb.h, self._qfb.h)
+        img = [[self.Q(x, y) for x in Q_x] for y in Q_y]
+        plt.imshow(img)
+
+        f_x = np.linspace(0, self._qfb.w, self._qfb.w)
+        f_y = [self.f(xi) for xi in f_x]
+        plt.plot(f_x, f_y, 'g')
+
+        plt.plot(self._sb._x, self._sb._y, 'bo')
+
+        plt.show()
 
     def save_to_file(self, filename, scale = 1):
         """
@@ -553,11 +643,35 @@ class Tester:
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
         # vtb._generate_straight_trajectory(10)
-        vtb._generate_random_trajectory(10)
+        
+        while True:
+            vtb._generate_random_trajectory(10)
+            quality = vtb._quality_along_trajectory(100)
+            print quality
+            if quality > 0.0:
+                break
+        
+        axis_x = np.linspace(0, qfb.w, qfb.w)
+        axis_y = np.linspace(0, qfb.h, qfb.h)
+        img = [[vtb.Q(x, y) for x in axis_x] for y in axis_y]
+        plt.imshow(img)
 
-        quality = vtb._quality_along_trajectory(100)
-        print quality
+        x = np.linspace(0, qfb.w, qfb.w)
+        y = [vtb.f(xi) for xi in x]
+        plt.plot(x, y, 'g')
 
+        plt.plot(vtb._sb._x, vtb._sb._y, 'bo')
+
+        plt.show()
+
+    def test_train_trajectory(self):
+        qfb = QualityFunctionBuilder()
+        qfb.load_from_image('samples/2_holes.png')
+        car = CarBuilder()
+        vtb = VehicleTrajectoryBuilder(qfb, car)
+        
+        vtb.train_trajectory()
+        
         axis_x = np.linspace(0, qfb.w, qfb.w)
         axis_y = np.linspace(0, qfb.h, qfb.h)
         img = [[vtb.Q(x, y) for x in axis_x] for y in axis_y]
@@ -591,16 +705,15 @@ if __name__ == '__main__':
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
     # Tester().test_trajectory_drawing()
-    Tester().test_quality_along_trajectory()
+    # Tester().test_quality_along_trajectory()
+    Tester().test_train_trajectory()
 
     # main('samples/2_holes.png')
     pass
 
-
-
-# TODO 3: implement argument validations for ALL methods
-
-
+# TODO 3: implement various checks and validations for ALL methods
+# TODO 3: make global constants (parameters of the algo)
+# TODO 3: add information messages to console
 
 
 
