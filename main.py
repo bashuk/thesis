@@ -186,7 +186,7 @@ class SplineBuilder:
         b = self._b[index]
         c = self._c[index]
         d = self._d[index]
-        der = b * (x - x0) + 2.0 * c * (x - x0) + 3.0 * d * (x - x0) ** 2
+        der = b + 2.0 * c * (x - x0) + 3.0 * d * (x - x0) ** 2
 
         return der
 
@@ -225,8 +225,20 @@ class SplineBuilder:
         self.mile_length = mile_length
 
         if len(self.mile) != M + 1:
-            print l
             raise Exception("Ooops... I think we didn't manage to split it.")
+
+    def show(self):
+        """
+        Show spline.
+        """
+        x = np.linspace(self._x[0], self._x[-1], 400)
+        y = [self.f(xi) for xi in x]
+
+        dot_x = self._x
+        dot_y = [self.f(xi) for xi in dot_x]
+
+        plt.plot(x, y, 'g', dot_x, dot_y, 'ro')
+        plt.show()
 
 class QualityFunctionBuilder:
     """
