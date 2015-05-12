@@ -282,7 +282,7 @@ class QualityFunctionBuilder:
             self.__init__()
             raise Exception("Image size should be at least 2x2.")
         self._im = [
-            [float(pix[x, y]) / 256.0 for y in xrange(self._imh)] 
+            [float(pix[x, y]) / 255.0 for y in xrange(self._imh)] 
             for x in xrange(self._imw)
         ]
 
@@ -418,7 +418,8 @@ class VehicleTrajectoryBuilder:
             xi = self._sb.mile[i]
             yi = self._sb.f(xi)
             Qi = self._qfb.Q(xi, yi)
-            res += self._sb.mile_length * Qi
+            # res += self._sb.mile_length * Qi
+            res += Qi
 
         return res
 
@@ -442,10 +443,13 @@ class VehicleTrajectoryBuilder:
         """
         Returns the values of trajectory function.
         """
-        if not(self._trained):
-            raise Exception("Trajectory is not yet trained.")
-
         return self._sb.f(x)
+
+    def Q(self, x, y):
+        """
+        Returns the values of quality function.
+        """
+        return self._qfb.Q(x, y)
 
     def save_to_file(self, filename, scale = 1):
         """
@@ -511,8 +515,8 @@ class Tester:
         sb.build(x, y, 1.0, 1.0)
         z = [sb.f(point) for point in x]
 
-        sb.split_by_length(split_pieces, 100)
-        mx = [x[0]] + sb.m
+        sb.split_by_length(split_pieces)
+        mx = sb.mile
         my = np.sin(mx)
 
         plt.plot(x, y, 'b--', x, z, 'g', mx, my, 'ro')
@@ -543,6 +547,30 @@ class Tester:
         vtb._generate_random_trajectory(10)
         vtb.save_to_file('samples/result.png')
 
+    def test_quality_along_trajectory(self):
+        qfb = QualityFunctionBuilder()
+        qfb.load_from_image('samples/2_holes.png')
+        car = CarBuilder()
+        vtb = VehicleTrajectoryBuilder(qfb, car)
+        # vtb._generate_straight_trajectory(10)
+        vtb._generate_random_trajectory(10)
+
+        quality = vtb._quality_along_trajectory(100)
+        print quality
+
+        axis_x = np.linspace(0, qfb.w, qfb.w)
+        axis_y = np.linspace(0, qfb.h, qfb.h)
+        img = [[vtb.Q(x, y) for x in axis_x] for y in axis_y]
+        plt.imshow(img)
+
+        x = np.linspace(0, qfb.w, qfb.w)
+        y = [vtb.f(xi) for xi in x]
+        plt.plot(x, y, 'g')
+
+        plt.plot(vtb._sb._x, vtb._sb._y, 'bo')
+
+        plt.show()
+
 def main(filename):
     qfb = QualityFunctionBuilder()
     qfb.load_from_image(filename)
@@ -562,7 +590,8 @@ if __name__ == '__main__':
     # Tester().test_spline_split_by_length(5)
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
-    Tester().test_trajectory_drawing()
+    # Tester().test_trajectory_drawing()
+    Tester().test_quality_along_trajectory()
 
     # main('samples/2_holes.png')
     pass
