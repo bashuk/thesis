@@ -492,7 +492,8 @@ class VehicleTrajectoryBuilder:
 
         # Choosing from given number of random trajectories
         self._generate_straight_trajectory(points, miles_per_point)
-        for iteration in xrange(100):
+        # TODO 2: make more initial trajectories
+        for iteration in xrange(10):
             x, y = self._generate_random_trajectory(
                 points, miles_per_point, False)
             self._try_alternative_trajectory(x, y, miles)
@@ -520,7 +521,7 @@ class VehicleTrajectoryBuilder:
                 if upd:
                     print "Jump = {}, quality = {}".format(jump_step, self._qat)
                     # self.show()
-            jump_step *= 0.75
+            jump_step *= 0.5
 
         self._trained = True
 
@@ -547,10 +548,12 @@ class VehicleTrajectoryBuilder:
 
         f_x = np.linspace(0, self._qfb.w, self._qfb.w)
         f_y = [self.f(xi) for xi in f_x]
-        plt.plot(f_x, f_y, 'g')
+        plt.plot(f_x, f_y, 'g', label='Trajectory (spline)')
 
-        plt.plot(self._sb._x, self._sb._y, 'bo')
+        plt.plot(self._sb._x, self._sb._y, 'bo', label='Key points')
 
+        plt.title('Optimal trajectory')
+        plt.axis([Q_x[0], Q_x[-1], Q_y[0], Q_y[-1]])
         plt.show()
 
     def save_to_file(self, filename, scale = 1):
@@ -678,13 +681,13 @@ class Tester:
 
     def test_train_trajectory(self):
         qfb = QualityFunctionBuilder()
-        qfb.load_from_image('samples/1_massive_hole.png')
+        qfb.load_from_image('samples/many_holes.png')
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
         
-        vtb.train_trajectory(12)
+        vtb.train_trajectory(10)
         vtb.show()
-        vtb.save_to_file('samples/result.png')
+        # vtb.save_to_file('samples/result.png')
 
 def main(filename):
     qfb = QualityFunctionBuilder()
