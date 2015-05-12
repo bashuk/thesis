@@ -41,8 +41,10 @@ class SplineBuilder:
         self._b = []
         self._c = []
         self._d = []
-        # Spline milestones
-        self.m = []
+        # Spline miles
+        self.miles = 0
+        self.mile_length = 0
+        self.mile = []
 
     def _tdma_solve(self, a, b, c, d):
         """
@@ -189,12 +191,12 @@ class SplineBuilder:
         return der
 
     # @profilehooks.profile
-    def split_by_length(self, milestones, integration_pieces = 100):
+    def split_by_length(self, miles, integration_pieces_per_mile = 10):
         """
         Splits calculated spline into m pieces, equal by lenght.
         """
-        M = milestones
-        N = integration_pieces
+        M = miles
+        N = miles * integration_pieces_per_mile
 
         x = map(float, np.linspace(self._x[0], self._x[-1], 2 * N + 1))
         y = map(lambda x: math.sqrt(1.0 + self.der_f(x) ** 2), x)
@@ -204,23 +206,25 @@ class SplineBuilder:
             intgr = (x[2 * i + 2] - x[2 * i]) / 6.0 * \
                 (y[2 * i] + 4.0 * y[2 * i + 1] + y[2 * i + 2])
             l.append(intgr)
-
         for i in range(1, len(l)):
             l[i] = l[i] + l[i - 1]
 
-        mile = l[-1] / M
-        self.m = []
-        wanted = mile
+        mile_length = l[-1] / M
+        self.mile = [0.0]
+        wanted = mile_length
         for i in range(N):
             if l[i] <= wanted and wanted < l[i + 1]:
                 # alpha == 1.0 means left, alpha == 0.0 means right
                 alpha = (l[i + 1] - wanted) / (l[i + 1] - l[i])
-                self.m.append(alpha * x[2 * i] + (1.0 - alpha) * x[2 * (i + 1)])
-                wanted += mile
-        if len(self.m) == M - 1:
-            self.m.append(x[-1])
+                self.mile.append(
+                    alpha * x[2 * i] + (1.0 - alpha) * x[2 * (i + 1)])
+                wanted += mile_length
+        if len(self.mile) == M:
+            self.mile.append(x[-1])
+        self.miles = M
+        self.mile_length = mile_length
 
-        if len(self.m) != M:
+        if len(self.mile) != M + 1:
             raise Exception("Ooops... I think we didn't manage to split it.")
 
 class QualityFunctionBuilder:
@@ -362,13 +366,6 @@ class VehicleTrajectoryBuilder:
     is defined by Ackermann steering geometry.
     """
     def __init__(self, qfb, car, fl = None, fr = None, dfl = None, dfr = None):
-        # TODO: class validation? :( [gives type 'instance']
-        # if type(qfb) != QualityFunctionBuilder:
-        #     raise TypeError("First argument must be a QFB.")
-
-        # if type(car) != CarBuilder:
-        #     raise TypeError("Second argument must be a car.")
-
         # Helper classes
         self._qfb = qfb
         self._car = car
@@ -411,16 +408,26 @@ class VehicleTrajectoryBuilder:
         """
         Calculates the quality of current trajectory (defined by spline).
         """
-        pass # TODO
+        pass # TODO 1
 
-    def train_trajectory(self, points = 100, milestones = None):
+    def train_trajectory(self, points = 10, miles_per_point = None):
         """
         Trains the spline so that it has the best quality.
         """
-        if step is None:
-            step = self._qfb.w / points / 10
+        if miles_per_point is None:
+            miles_per_point = 10
+        mpp = miles_per_point
+        miles = points * miles_per_point
+
+        self._generate_random_trajectory(points)
+        # For now, the number of iterations is fixed.
+        # The stopping condition should be added here to avoid this.
+        # TODO 2: implement stopping condition
+        for iteration in xrange(10):
+            # TODO 1: implement training step
+            pass
+
         self._trained = True
-        pass # TODO
 
     def f(self, x):
         """
@@ -553,7 +560,7 @@ if __name__ == '__main__':
 
 
 
-# TODO: implement argument validations for ALL methods
+# TODO 3: implement argument validations for ALL methods
 
 
 
