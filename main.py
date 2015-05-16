@@ -318,13 +318,20 @@ class QualityFunctionBuilder:
         if self.w == 0:
             raise Exception("Quality funcion not loaded yet.")
 
-        if x < 0 or x > self.w or y < 0 or y > self.h:
+        # Going beyond the boundaries of the road line is not acceptable.
+        if y < 0 or y > self.h:
             # I thought of the exception here at first, but then I realised
             # that splines can go beyond the road, and when calculating
             # the quality for that spline – we don't want it to raise any
             # exceptions, we just want it to make an enormously big jump
             return - 10 ** 9
             # raise ValueError("Given point is out of the terrain.")
+        # Since we have no info about the quality of the road there, we just
+        # have to assume that those values are the same as on the boundaries.
+        if x < 0:
+            x = 0
+        if x > self.w:
+            x = self.w
 
         # Scaling
         x = 1.0 * x * (self._imw - 1) / self.w
@@ -465,8 +472,49 @@ class VehicleTrajectoryBuilder:
         # Implemented with the method of right rectangles
         Q1 = 0.0
         for i in xrange(1, len(self._sb.mile)):
-            xi = self._sb.mile[i]
-            yi = self._sb.f(xi)
+            # Start and end points of the arc
+            x1 = self._sb.mile[i - 1]
+            y1 = self._sb.f(x1)
+            x2 = self._sb.mile[i]
+            y2 = self._sb.f(x2)
+
+            # Derivatives on the ends, corresponding angles
+            d1 = self._sb.der_f(x1)
+            a1 = math.atan(d1)
+            d2 = self._sb.der_f(x2)
+            a2 = math.atan(d2)
+
+            if abs(a1 - a2) < 1e-5:
+                # Case 1: line
+                # All wheels will cover the same area in this case.
+                # The only difference is where we take the average quality -
+                # this point will be individual for each wheel.
+                area = self._car.wheel * self._sb.mile_length
+                c_move = (self._sb.mile_length * 0.5) * 
+                    np.array([np.cos(a1), np.sin(a1)])
+                wheel_move = (self._car.width * 0.5) * np.array(
+                        [np.cos(a1 + np.pi * 0.5), np.sin(a1 + np.pi * 0.5)])
+
+                # Rear wheels
+                c = np.array([x1, y1]) # rear suspention center
+                c += c_move
+                lw = c + wheel_move
+                Q1 += area * self._qfb.Q(*lw) # left wheel
+                rw = c - wheel_move
+                Q1 += area * self._qfb.Q(*lw) # right wheel
+
+                # Front wheels
+                c = np.array([x1, y1])
+                c += (self._car.length * 0.5) * 
+                    np.array([np.cos(a1), np.sin(a1)]) # front susp. center
+                c += c_move
+                lw = c + wheel_move
+                Q1 += area * self._qfb.Q(*lw) # left wheel
+                rw = c - wheel_move
+                Q1 += area * self._qfb.Q(*lw) # right wheel
+            else:
+                # Case 2: arc
+            
             Qi = self._qfb.Q(xi, yi)
             Q1 += Qi
 
