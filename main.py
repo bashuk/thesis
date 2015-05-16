@@ -190,7 +190,6 @@ class SplineBuilder:
 
         return der
 
-    # @profilehooks.profile
     def split_by_length(self, miles, integration_pieces_per_mile = 10):
         """
         Splits calculated spline into m pieces, equal by lenght.
@@ -363,10 +362,10 @@ class CarBuilder:
     """
     Simple class for containing car parameters.
     """
-    def __init__(self, width = 17.1, length = 27.1, wheel = 3.15):
+    def __init__(self, width = 171, length = 271, wheel = 315):
         """
-        Default parameters (width = 17.1, length = 27.1, wheel = 3.15) are
-        the actual parameters of Bugatti Veyron 16.4, scale 1:10.
+        Default parameters (width = 171, length = 271, wheel = 315) are
+        the actual parameters of Bugatti Veyron 16.4, given in cm.
         """
         self.width = width
         self.length = length
@@ -686,9 +685,11 @@ class Tester:
 
         plt.show()
 
+    # @profilehooks.profile
     def test_train_trajectory(self):
         qfb = QualityFunctionBuilder()
-        qfb.load_from_image('samples/1_bumper.png')
+        qfb.load_from_image('samples/2_holes.png')
+        qfb.set_custom_terrain_size((1500, 300))
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
         
