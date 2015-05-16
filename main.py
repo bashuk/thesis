@@ -486,6 +486,8 @@ class VehicleTrajectoryBuilder:
 
             # Additional vectors for easy computation of coordinates of
             # all 4 wheels
+            start = np.array([x1, y1])
+            finish = np.array([x2, y2])
             front_move = (self._car.length) * np.array([np.cos(a1), np.sin(a1)])
             wheel_move = (self._car.width * 0.5) * np.array(
                     [np.cos(a1 + np.pi * 0.5), np.sin(a1 + np.pi * 0.5)])
@@ -496,25 +498,22 @@ class VehicleTrajectoryBuilder:
                 # The only difference is where we take the average quality -
                 # this point will be individual for each wheel.
                 area = self._car.wheel * self._sb.mile_length
-                c_move = (self._sb.mile_length * 0.5) * 
+                mile_move = (self._sb.mile_length * 0.5) * 
                     np.array([np.cos(a1), np.sin(a1)])
 
                 # Rear wheels
-                c = np.array([x1, y1]) # rear suspention center
-                c += c_move
-                lw = c + wheel_move
+                rear = start + mile_move # rear suspention center
+                lw = rear + wheel_move
                 Q1 += area * self._qfb.Q(*lw) # left wheel
-                rw = c - wheel_move
+                rw = rear - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
 
                 # Front wheels
-                c = np.array([x1, y1])
-                c += front_move # front susp. center
-                c += c_move
-                lw = c + wheel_move
-                Q1 += float(area * self._qfb.Q(*lw)) # left wheel
-                rw = c - wheel_move
-                Q1 += float(area * self._qfb.Q(*lw)) # right wheel
+                front = start + mile_move + front_move # front suspention center
+                lw = front + wheel_move
+                Q1 += area * self._qfb.Q(*lw) # left wheel
+                rw = front - wheel_move
+                Q1 += area * self._qfb.Q(*lw) # right wheel
             else:
                 # Case 2: arc
                 # Wheels are moving according to the Ackermann steering.
@@ -525,24 +524,30 @@ class VehicleTrajectoryBuilder:
                 l1a = - np.cos(a1p) # = x1 - (x1 + np.cos(a1p))
                 l1b = np.sin(a1p) # = (y1 + np.sin(a1p)) - y1
                 l1c = - (l1a * x1 + l1b * y1)
+
                 a2p = a2 + np.pi * 0.5
                 l2a = - np.cos(a2p) # = x2 - (x2 + np.cos(a2p))
                 l2b = np.sin(a2p) # = (y2 + np.sin(a2p)) - y2
                 l2c = - (l2a * x2 + l2b * y2)
+
                 # Center is the intersection of the lines
                 cx = float((l1b * l2c - l2b * l1c) / (l1a * l2b - l2a * l1b))
                 cy = float((l1c * l2a - l2c * l1a) / (l1a * l2b - l2a * l1b))
+                co = np.array([cx, cy])
+
                 # Arc radius
-                R1 = math.sqrt((cx - x1) ** 2 + (cy - y1) ** 2)
-                R2 = math.sqrt((cx - x2) ** 2 + (cy - y2) ** 2)
+                R1 = np.linalg.norm(start - co)
+                R2 = np.linalg.norm(finish - co)
+
                 # Simple check to make sure everything is OK
                 if abs(R1 - R2) > 1e-5:
                     raise Exception(
                         "Ooops... bad center. R1 = {}, R2 = {}".format(R1, R2))
                 cr = float(R1 + R2) / 2.0
+
                 # Arc radial size
-                v1 = np.array([x1, y1]) - np.array([cx, cy]) # radial vector
-                v2 = np.array([x2, y2]) - np.array([cx, cy]) # radial vector
+                v1 = start - co # radial vector
+                v2 = finish - co # radial vector
                 v1u = v1 / np.linalg.norm(v1) # unit vector
                 v2u = v2 / np.linalg.norm(v2) # unit vector
                 ca = np.arccos(np.dot(v1u, v2u)) # circular arc angle
@@ -552,6 +557,7 @@ class VehicleTrajectoryBuilder:
                     else:
                         return np.pi
                 ca = float(ca)
+
                 # Orienting the angle
                 # http://e-maxx.ru/algo/oriented_area
                 s = (cx - x1) * (y2 - y1) - (cy - y1) * (x2 - x1)
@@ -559,67 +565,46 @@ class VehicleTrajectoryBuilder:
                     # counter-clockwise order - angle must be negative
                     ca = - ca
 
+                # Rotation matrix (rotates the half of the arc angle)
+                rot_a = ca * 0.5
+                rot_m = np.array([[np.cos(rot_a), - np.sin(rot_a)], 
+                    [np.sin(rot_a), np.cos(rot_a)]])
+
                 # Rear left wheel
-                start_w = np.array([x1, y1])
-                start_w += wheel_move
-                start_w -= np.array([cx, cy])
-                inner_r = np.linalg.norm(start_w) - self._car.wheel * 0.5
+                start_w = start + wheel_move
+                rel_start_w = start_w - co
+                rel_mid_w = np.dot(rot_m, rel_start_w)
+                inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
                 outer_r = inner_r + self._car.wheel
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
-                start_a = math.atan2(*start_w)
-                mid_a = start_a + ca * 0.5
-                mid_x = cx + 
-                    (start_w[0] * np.cos(mid_a) - start_w[1] * np.sin(mid_a))
-                mid_y = cy +
-                    (start_w[0] * np.sin(mid_a) + start_w[1] * np.cos(mid_a))
-                Q1 += float(area * self._qfb.Q(mid_x, mid_y))
+                Q1 += float(area * self._qfb.Q(*rel_mid_w))
 
                 # Rear right wheel
-                start_w = np.array([x1, y1])
-                start_w -= wheel_move
-                start_w -= np.array([cx, cy])
-                inner_r = np.linalg.norm(start_w) - self._car.wheel * 0.5
+                start_w = start - wheel_move
+                rel_start_w = start_w - co
+                rel_mid_w = np.dot(rot_m, rel_start_w)
+                inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
                 outer_r = inner_r + self._car.wheel
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
-                start_a = math.atan2(*start_w)
-                mid_a = start_a + ca * 0.5
-                mid_x = cx + 
-                    (start_w[0] * np.cos(mid_a) - start_w[1] * np.sin(mid_a))
-                mid_y = cy +
-                    (start_w[0] * np.sin(mid_a) + start_w[1] * np.cos(mid_a))
-                Q1 += float(area * self._qfb.Q(mid_x, mid_y))
+                Q1 += float(area * self._qfb.Q(*rel_mid_w))
 
                 # Front left wheel
-                start_w = np.array([x1, y1])
-                start_w += front_move
-                start_w += wheel_move
-                start_w -= np.array([cx, cy])
-                inner_r = np.linalg.norm(start_w) - self._car.wheel * 0.5
+                start_w = start + front_move + wheel_move
+                rel_start_w = start_w - co
+                rel_mid_w = np.dot(rot_m, rel_start_w)
+                inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
                 outer_r = inner_r + self._car.wheel
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
-                start_a = math.atan2(*start_w)
-                mid_a = start_a + ca * 0.5
-                mid_x = cx + 
-                    (start_w[0] * np.cos(mid_a) - start_w[1] * np.sin(mid_a))
-                mid_y = cy +
-                    (start_w[0] * np.sin(mid_a) + start_w[1] * np.cos(mid_a))
-                Q1 += float(area * self._qfb.Q(mid_x, mid_y))
+                Q1 += float(area * self._qfb.Q(*rel_mid_w))
 
                 # Front right wheel
-                start_w = np.array([x1, y1])
-                start_w += front_move
-                start_w -= wheel_move
-                start_w -= np.array([cx, cy])
-                inner_r = np.linalg.norm(start_w) - self._car.wheel * 0.5
+                start_w = start + front_move - wheel_move
+                rel_start_w = start_w - co
+                rel_mid_w = np.dot(rot_m, rel_start_w)
+                inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
                 outer_r = inner_r + self._car.wheel
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
-                start_a = math.atan2(*start_w)
-                mid_a = start_a + ca * 0.5
-                mid_x = cx + 
-                    (start_w[0] * np.cos(mid_a) - start_w[1] * np.sin(mid_a))
-                mid_y = cy +
-                    (start_w[0] * np.sin(mid_a) + start_w[1] * np.cos(mid_a))
-                Q1 += float(area * self._qfb.Q(mid_x, mid_y))
+                Q1 += float(area * self._qfb.Q(*rel_mid_w))
 
         # Q2 is the integral over constant scalar field.
         # This corresponds to the length of the trajectory. 
