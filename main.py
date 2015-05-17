@@ -743,7 +743,6 @@ class VehicleTrajectoryBuilder:
         """
         Show quality function and current trajectory.
         """
-        # TODO 1: draw all 4 wheels
         Q_x = np.linspace(0, self._qfb.w, self._qfb.w)
         Q_y = np.linspace(0, self._qfb.h, self._qfb.h)
         img = [[self.Q(x, y) for x in Q_x] for y in Q_y]
@@ -878,8 +877,15 @@ class Tester:
         vtb = VehicleTrajectoryBuilder(qfb, car)
 
         x, y = vtb._generate_straight_trajectory(10, rebuild_spline = False)
-        y[6] -= 10
-        y[7] -= 10
+        y[1] += 0.0
+        y[2] += 5.0
+        y[3] += 10.0
+        y[4] += 15.0
+        y[5] += 15.0
+        y[6] += 15.0
+        y[7] += 15.0
+        y[8] += 10.0
+        y[9] += 5.0
         vtb._sb.build(x, y)
         print vtb._quality_along_trajectory(100)
         
