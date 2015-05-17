@@ -401,6 +401,11 @@ class VehicleTrajectoryBuilder:
         self._qat = - 10 ** 9
         # Trained flag
         self._trained = False
+        # wheels traces
+        self._rlw = []
+        self._rrw = []
+        self._flw = []
+        self._frw = []
 
     def _generate_straight_trajectory(self, points, miles_per_point = 10,
         rebuild_spline = True):
@@ -417,6 +422,11 @@ class VehicleTrajectoryBuilder:
             self._sb.build(x, y, self._dfl, self._dfr)
             miles = points * miles_per_point
             self._qat = self._quality_along_trajectory(miles)
+            # wheels traces
+            self._rlw = []
+            self._rrw = []
+            self._flw = []
+            self._frw = []
 
         return x, y
 
@@ -436,6 +446,11 @@ class VehicleTrajectoryBuilder:
             self._sb.build(x, y, self._dfl, self._dfr)
             miles = points * miles_per_point
             self._qat = self._quality_along_trajectory(miles)
+            # wheels traces
+            self._rlw = []
+            self._rrw = []
+            self._flw = []
+            self._frw = []
 
         return x, y
 
@@ -454,6 +469,11 @@ class VehicleTrajectoryBuilder:
         new_qat = self._quality_along_trajectory(miles)
         if new_qat > self._qat or force:
             self._qat = new_qat
+            # wheels traces
+            self._rlw = []
+            self._rrw = []
+            self._flw = []
+            self._frw = []
             return True
         else:
             self._sb.build(cur_x, cur_y, self._dfl, self._dfr)
@@ -464,6 +484,12 @@ class VehicleTrajectoryBuilder:
         Calculates the quality of current trajectory (defined by spline).
         """
         self._sb.split_by_length(miles)
+
+        # wheels traces
+        self._rlw = []
+        self._rrw = []
+        self._flw = []
+        self._frw = []
 
         # Q1 is integral over quality function. 
         # This corresponds to quality of the road. 
@@ -513,16 +539,22 @@ class VehicleTrajectoryBuilder:
                 rear = start + mile_move # rear suspention center
                 lw = rear + wheel_move
                 Q1 += area * self._qfb.Q(*lw) # left wheel
+                self._rlw.append(lw)
+
                 rw = rear - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
+                self._rrw.append(rw)
                 # print 'lw rw', lw, rw # debug
 
                 # Front wheels
                 front = start + mile_move + front_move # front suspention center
                 lw = front + wheel_move
                 Q1 += area * self._qfb.Q(*lw) # left wheel
+                self._flw.append(lw)
+
                 rw = front - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
+                self._frw.append(rw)
                 # print 'lw rw', lw, rw # debug
             else:
                 # print 'Case 2' # debug
@@ -590,6 +622,7 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
+                self._rlw.append(mid_w)
                 # print 'rl: area midw', area, mid_w # debug
 
                 # Rear right wheel
@@ -601,6 +634,7 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
+                self._rrw.append(mid_w)
                 # print 'rr: area midw', area, mid_w # debug
 
                 # Front left wheel
@@ -612,6 +646,7 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
+                self._flw.append(mid_w)
                 # print 'fl: area midw', area, mid_w # debug
 
                 # Front right wheel
@@ -623,10 +658,11 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
+                self._frw.append(mid_w)
                 # print 'fr: area midw', area, mid_w # debug
             # print 'Q1', Q1 # debug
             # print '----------------------------' # debug
-            raw_input() # debug
+            # raw_input() # debug
 
         # Q2 is the integral over constant scalar field.
         # This corresponds to the length of the trajectory. 
@@ -718,6 +754,20 @@ class VehicleTrajectoryBuilder:
         plt.plot(f_x, f_y, 'g', label='Trajectory (spline)')
 
         plt.plot(self._sb._x, self._sb._y, 'bo', label='Key points')
+
+        # wheels traces
+        rl_x = [w[0] for w in self._rlw]
+        rl_y = [w[1] for w in self._rlw]
+        plt.plot(rl_x, rl_y, 'yo')
+        rr_x = [w[0] for w in self._rrw]
+        rr_y = [w[1] for w in self._rrw]
+        plt.plot(rr_x, rr_y, 'yo')
+        fl_x = [w[0] for w in self._flw]
+        fl_y = [w[1] for w in self._flw]
+        plt.plot(fl_x, fl_y, 'co')
+        fr_x = [w[0] for w in self._frw]
+        fr_y = [w[1] for w in self._frw]
+        plt.plot(fr_x, fr_y, 'co')
 
         plt.title('Optimal trajectory')
         plt.axis([Q_x[0], Q_x[-1], Q_y[0], Q_y[-1]])
