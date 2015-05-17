@@ -369,7 +369,7 @@ class CarBuilder:
     """
     Simple class for containing car parameters.
     """
-    def __init__(self, width = 171, length = 271, wheel = 315):
+    def __init__(self, width = 171, length = 271, wheel = 31.5):
         """
         Default parameters (width = 171, length = 271, wheel = 315) are
         the actual parameters of Bugatti Veyron 16.4, given in cm.
@@ -463,7 +463,6 @@ class VehicleTrajectoryBuilder:
         """
         Calculates the quality of current trajectory (defined by spline).
         """
-        # TODO 2: Implement wheels and integration over Q'.
         self._sb.split_by_length(miles)
 
         # Q1 is integral over quality function. 
@@ -472,8 +471,8 @@ class VehicleTrajectoryBuilder:
         # Implemented with the method of right rectangles
         Q1 = 0.0
         for i in xrange(1, len(self._sb.mile)):
-            print 'i', i # debug
-            print 'mile', self._sb.mile_length # debug
+            # print 'i', i # debug
+            # print 'mile', self._sb.mile_length # debug
             # Start and end points of the arc
             x1 = self._sb.mile[i - 1]
             y1 = self._sb.f(x1)
@@ -485,8 +484,8 @@ class VehicleTrajectoryBuilder:
             a1 = math.atan(d1)
             d2 = self._sb.der_f(x2)
             a2 = math.atan(d2)
-            print 'xyda', x1, y1, d1, a1 # debug
-            print 'xyda', x2, y2, d2, a2 # debug
+            # print 'xyda', x1, y1, d1, a1 # debug
+            # print 'xyda', x2, y2, d2, a2 # debug
 
             # Additional vectors for easy computation of coordinates of
             # all 4 wheels
@@ -495,11 +494,11 @@ class VehicleTrajectoryBuilder:
             front_move = (self._car.length) * np.array([np.cos(a1), np.sin(a1)])
             wheel_move = (self._car.width * 0.5) * np.array(
                     [np.cos(a1 + np.pi * 0.5), np.sin(a1 + np.pi * 0.5)])
-            print 'st fi', start, finish # debug
-            print 'frmv whmv', front_move, wheel_move # debug
+            # print 'st fi', start, finish # debug
+            # print 'frmv whmv', front_move, wheel_move # debug
 
             if abs(a1 - a2) < 1e-5:
-                print 'Case 1' # debug
+                # print 'Case 1' # debug
                 # Case 1: line
                 # All wheels will cover the same area in this case.
                 # The only difference is where we take the average quality -
@@ -507,8 +506,8 @@ class VehicleTrajectoryBuilder:
                 area = self._car.wheel * self._sb.mile_length
                 mile_move = (self._sb.mile_length * 0.5) * \
                     np.array([np.cos(a1), np.sin(a1)])
-                print 'area', area # debug
-                print 'mimv', mile_move # debug
+                # print 'area', area # debug
+                # print 'mimv', mile_move # debug
 
                 # Rear wheels
                 rear = start + mile_move # rear suspention center
@@ -516,7 +515,7 @@ class VehicleTrajectoryBuilder:
                 Q1 += area * self._qfb.Q(*lw) # left wheel
                 rw = rear - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
-                print 'lw rw', lw, rw # debug
+                # print 'lw rw', lw, rw # debug
 
                 # Front wheels
                 front = start + mile_move + front_move # front suspention center
@@ -524,9 +523,9 @@ class VehicleTrajectoryBuilder:
                 Q1 += area * self._qfb.Q(*lw) # left wheel
                 rw = front - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
-                print 'lw rw', lw, rw # debug
+                # print 'lw rw', lw, rw # debug
             else:
-                print 'Case 2' # debug
+                # print 'Case 2' # debug
                 # Case 2: arc
                 # Wheels are moving according to the Ackermann steering.
                 
@@ -574,13 +573,13 @@ class VehicleTrajectoryBuilder:
                 if s > 0:
                     # counter-clockwise order - angle must be negative
                     ca = - ca
-                print 'co cr ca', co, cr, ca # debug
+                # print 'co cr ca', co, cr, ca # debug
 
                 # Rotation matrix (rotates the half of the arc angle)
                 rot_a = ca * 0.5
                 rot_m = np.array([[np.cos(rot_a), - np.sin(rot_a)], 
                     [np.sin(rot_a), np.cos(rot_a)]])
-                print 'rot_m', rot_m # debug
+                # print 'rot_m', rot_m # debug
 
                 # Rear left wheel
                 start_w = start + wheel_move
@@ -591,7 +590,7 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
-                print 'rl: area midw', area, mid_w # debug
+                # print 'rl: area midw', area, mid_w # debug
 
                 # Rear right wheel
                 start_w = start - wheel_move
@@ -602,7 +601,7 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
-                print 'rr: area midw', area, mid_w # debug
+                # print 'rr: area midw', area, mid_w # debug
 
                 # Front left wheel
                 start_w = start + front_move + wheel_move
@@ -613,7 +612,7 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
-                print 'fl: area midw', area, mid_w # debug
+                # print 'fl: area midw', area, mid_w # debug
 
                 # Front right wheel
                 start_w = start + front_move - wheel_move
@@ -624,9 +623,9 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
-                print 'fr: area midw', area, mid_w # debug
-            print 'Q1', Q1 # debug
-            print '----------------------------' # debug
+                # print 'fr: area midw', area, mid_w # debug
+            # print 'Q1', Q1 # debug
+            # print '----------------------------' # debug
             raw_input() # debug
 
         # Q2 is the integral over constant scalar field.
@@ -647,6 +646,7 @@ class VehicleTrajectoryBuilder:
         """
         Trains the spline so that it has the best quality.
         """
+        # TODO 1: train softly
         miles = points * miles_per_point
 
         # Choosing from given number of random trajectories
@@ -707,6 +707,7 @@ class VehicleTrajectoryBuilder:
         """
         Show quality function and current trajectory.
         """
+        # TODO 1: draw all 4 wheels
         Q_x = np.linspace(0, self._qfb.w, self._qfb.w)
         Q_y = np.linspace(0, self._qfb.h, self._qfb.h)
         img = [[self.Q(x, y) for x in Q_x] for y in Q_y]
@@ -726,6 +727,7 @@ class VehicleTrajectoryBuilder:
         """
         Saves an image of the terrain combined with the trajectory curves.
         """
+        # TODO 2: draw all 4 wheels
         w, h = int(self._w * scale), int(self._h * scale)
         im = PIL.Image.new("RGB", (w, h))
         pix = im.load()
@@ -825,11 +827,9 @@ class Tester:
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
 
-        vtb._generate_straight_trajectory(10)
-        x = copy.deepcopy(vtb._sb._x)
-        y = copy.deepcopy(vtb._sb._y)
-        y[6] += 30
-        y[7] += 20
+        x, y = vtb._generate_straight_trajectory(10, rebuild_spline = False)
+        y[6] -= 10
+        y[7] -= 10
         vtb._sb.build(x, y)
         print vtb._quality_along_trajectory(100)
         
@@ -873,6 +873,7 @@ if __name__ == '__main__':
     # main('samples/2_holes.png')
     pass
 
+# TODO 3: remove #debug lines
 # TODO 3: implement various checks and validations for ALL methods
 # TODO 3: make global constants (parameters of the algo)
 # TODO 3: add information messages to console
