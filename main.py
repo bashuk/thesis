@@ -472,6 +472,8 @@ class VehicleTrajectoryBuilder:
         # Implemented with the method of right rectangles
         Q1 = 0.0
         for i in xrange(1, len(self._sb.mile)):
+            print 'i', i # debug
+            print 'mile', self._sb.mile_length # debug
             # Start and end points of the arc
             x1 = self._sb.mile[i - 1]
             y1 = self._sb.f(x1)
@@ -483,6 +485,8 @@ class VehicleTrajectoryBuilder:
             a1 = math.atan(d1)
             d2 = self._sb.der_f(x2)
             a2 = math.atan(d2)
+            print 'xyda', x1, y1, d1, a1 # debug
+            print 'xyda', x2, y2, d2, a2 # debug
 
             # Additional vectors for easy computation of coordinates of
             # all 4 wheels
@@ -491,15 +495,20 @@ class VehicleTrajectoryBuilder:
             front_move = (self._car.length) * np.array([np.cos(a1), np.sin(a1)])
             wheel_move = (self._car.width * 0.5) * np.array(
                     [np.cos(a1 + np.pi * 0.5), np.sin(a1 + np.pi * 0.5)])
+            print 'st fi', start, finish # debug
+            print 'frmv whmv', front_move, wheel_move # debug
 
             if abs(a1 - a2) < 1e-5:
+                print 'Case 1' # debug
                 # Case 1: line
                 # All wheels will cover the same area in this case.
                 # The only difference is where we take the average quality -
                 # this point will be individual for each wheel.
                 area = self._car.wheel * self._sb.mile_length
-                mile_move = (self._sb.mile_length * 0.5) * 
+                mile_move = (self._sb.mile_length * 0.5) * \
                     np.array([np.cos(a1), np.sin(a1)])
+                print 'area', area # debug
+                print 'mimv', mile_move # debug
 
                 # Rear wheels
                 rear = start + mile_move # rear suspention center
@@ -507,6 +516,7 @@ class VehicleTrajectoryBuilder:
                 Q1 += area * self._qfb.Q(*lw) # left wheel
                 rw = rear - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
+                print 'lw rw', lw, rw # debug
 
                 # Front wheels
                 front = start + mile_move + front_move # front suspention center
@@ -514,20 +524,22 @@ class VehicleTrajectoryBuilder:
                 Q1 += area * self._qfb.Q(*lw) # left wheel
                 rw = front - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
+                print 'lw rw', lw, rw # debug
             else:
+                print 'Case 2' # debug
                 # Case 2: arc
                 # Wheels are moving according to the Ackermann steering.
                 
                 # Finding parameters of the arc
                 # Radial lines
                 a1p = a1 + np.pi * 0.5
-                l1a = - np.cos(a1p) # = x1 - (x1 + np.cos(a1p))
-                l1b = np.sin(a1p) # = (y1 + np.sin(a1p)) - y1
+                l1a = - np.sin(a1p) # = y1 - (y1 + np.sin(a1p))
+                l1b = np.cos(a1p) # = (x1 + np.cos(a1p)) - x1
                 l1c = - (l1a * x1 + l1b * y1)
 
                 a2p = a2 + np.pi * 0.5
-                l2a = - np.cos(a2p) # = x2 - (x2 + np.cos(a2p))
-                l2b = np.sin(a2p) # = (y2 + np.sin(a2p)) - y2
+                l2a = - np.sin(a2p) # = y2 - (y2 + np.sin(a2p))
+                l2b = np.cos(a2p) # = (x2 + np.cos(a2p)) - x2
                 l2c = - (l2a * x2 + l2b * y2)
 
                 # Center is the intersection of the lines
@@ -536,13 +548,11 @@ class VehicleTrajectoryBuilder:
                 co = np.array([cx, cy])
 
                 # Arc radius
+                # Not always there is an arc that perfectly fits the given
+                # boundary conditions (x, y, a). That's why this circular
+                # arc is just an approximation.
                 R1 = np.linalg.norm(start - co)
                 R2 = np.linalg.norm(finish - co)
-
-                # Simple check to make sure everything is OK
-                if abs(R1 - R2) > 1e-5:
-                    raise Exception(
-                        "Ooops... bad center. R1 = {}, R2 = {}".format(R1, R2))
                 cr = float(R1 + R2) / 2.0
 
                 # Arc radial size
@@ -564,11 +574,13 @@ class VehicleTrajectoryBuilder:
                 if s > 0:
                     # counter-clockwise order - angle must be negative
                     ca = - ca
+                print 'co cr ca', co, cr, ca # debug
 
                 # Rotation matrix (rotates the half of the arc angle)
                 rot_a = ca * 0.5
                 rot_m = np.array([[np.cos(rot_a), - np.sin(rot_a)], 
                     [np.sin(rot_a), np.cos(rot_a)]])
+                print 'rot_m', rot_m # debug
 
                 # Rear left wheel
                 start_w = start + wheel_move
@@ -577,7 +589,9 @@ class VehicleTrajectoryBuilder:
                 inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
                 outer_r = inner_r + self._car.wheel
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
-                Q1 += float(area * self._qfb.Q(*rel_mid_w))
+                mid_w = rel_mid_w + co
+                Q1 += float(area * self._qfb.Q(*mid_w))
+                print 'rl: area midw', area, mid_w # debug
 
                 # Rear right wheel
                 start_w = start - wheel_move
@@ -586,7 +600,9 @@ class VehicleTrajectoryBuilder:
                 inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
                 outer_r = inner_r + self._car.wheel
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
-                Q1 += float(area * self._qfb.Q(*rel_mid_w))
+                mid_w = rel_mid_w + co
+                Q1 += float(area * self._qfb.Q(*mid_w))
+                print 'rr: area midw', area, mid_w # debug
 
                 # Front left wheel
                 start_w = start + front_move + wheel_move
@@ -595,7 +611,9 @@ class VehicleTrajectoryBuilder:
                 inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
                 outer_r = inner_r + self._car.wheel
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
-                Q1 += float(area * self._qfb.Q(*rel_mid_w))
+                mid_w = rel_mid_w + co
+                Q1 += float(area * self._qfb.Q(*mid_w))
+                print 'fl: area midw', area, mid_w # debug
 
                 # Front right wheel
                 start_w = start + front_move - wheel_move
@@ -604,7 +622,12 @@ class VehicleTrajectoryBuilder:
                 inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
                 outer_r = inner_r + self._car.wheel
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
-                Q1 += float(area * self._qfb.Q(*rel_mid_w))
+                mid_w = rel_mid_w + co
+                Q1 += float(area * self._qfb.Q(*mid_w))
+                print 'fr: area midw', area, mid_w # debug
+            print 'Q1', Q1 # debug
+            print '----------------------------' # debug
+            raw_input() # debug
 
         # Q2 is the integral over constant scalar field.
         # This corresponds to the length of the trajectory. 
@@ -615,7 +638,7 @@ class VehicleTrajectoryBuilder:
         # The more - the better.
         # Q1: [0.0 .. 4 * wheel * w]
         # Q2: [qfb.w .. sinusoidal_length]
-        res = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0
+        res = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0 \
             - Q2 / self._qfb.w * 1.0
 
         return res
@@ -798,29 +821,19 @@ class Tester:
     def test_quality_along_trajectory(self):
         qfb = QualityFunctionBuilder()
         qfb.load_from_image('samples/2_holes.png')
+        qfb.set_custom_terrain_size((1500, 300))
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
-        # vtb._generate_straight_trajectory(10)
+
+        vtb._generate_straight_trajectory(10)
+        x = copy.deepcopy(vtb._sb._x)
+        y = copy.deepcopy(vtb._sb._y)
+        y[6] += 30
+        y[7] += 20
+        vtb._sb.build(x, y)
+        print vtb._quality_along_trajectory(100)
         
-        while True:
-            vtb._generate_random_trajectory(10)
-            quality = vtb._quality_along_trajectory(100)
-            print quality
-            if quality > 0.0:
-                break
-        
-        axis_x = np.linspace(0, qfb.w, qfb.w)
-        axis_y = np.linspace(0, qfb.h, qfb.h)
-        img = [[vtb.Q(x, y) for x in axis_x] for y in axis_y]
-        plt.imshow(img)
-
-        x = np.linspace(0, qfb.w, qfb.w)
-        y = [vtb.f(xi) for xi in x]
-        plt.plot(x, y, 'g')
-
-        plt.plot(vtb._sb._x, vtb._sb._y, 'bo')
-
-        plt.show()
+        vtb.show()
 
     # @profilehooks.profile
     def test_train_trajectory(self):
@@ -854,8 +867,8 @@ if __name__ == '__main__':
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
     # Tester().test_trajectory_drawing()
-    # Tester().test_quality_along_trajectory()
-    Tester().test_train_trajectory()
+    Tester().test_quality_along_trajectory()
+    # Tester().test_train_trajectory()
 
     # main('samples/2_holes.png')
     pass
