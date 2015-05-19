@@ -422,11 +422,6 @@ class VehicleTrajectoryBuilder:
             self._sb.build(x, y, self._dfl, self._dfr)
             miles = points * miles_per_point
             self._qat = self._quality_along_trajectory(miles)
-            # wheels traces
-            self._rlw = []
-            self._rrw = []
-            self._flw = []
-            self._frw = []
 
         return x, y
 
@@ -446,11 +441,6 @@ class VehicleTrajectoryBuilder:
             self._sb.build(x, y, self._dfl, self._dfr)
             miles = points * miles_per_point
             self._qat = self._quality_along_trajectory(miles)
-            # wheels traces
-            self._rlw = []
-            self._rrw = []
-            self._flw = []
-            self._frw = []
 
         return x, y
 
@@ -469,17 +459,12 @@ class VehicleTrajectoryBuilder:
         new_qat = self._quality_along_trajectory(miles)
         if new_qat > self._qat or force:
             self._qat = new_qat
-            # wheels traces
-            self._rlw = []
-            self._rrw = []
-            self._flw = []
-            self._frw = []
             return True
         else:
             self._sb.build(cur_x, cur_y, self._dfl, self._dfr)
             return False
 
-    def _quality_along_trajectory(self, miles):
+    def _quality_along_trajectory(self, miles, save_trace = False):
         """
         Calculates the quality of current trajectory (defined by spline).
         """
@@ -664,6 +649,7 @@ class VehicleTrajectoryBuilder:
             # print '----------------------------' # debug
             # raw_input() # debug
 
+        # TODO 1: this is no longer valid, update.
         # Q2 is the integral over constant scalar field.
         # This corresponds to the length of the trajectory. 
         # The less - the better.
@@ -675,6 +661,12 @@ class VehicleTrajectoryBuilder:
         # Q2: [qfb.w .. sinusoidal_length]
         res = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0 \
             - Q2 / self._qfb.w * 1.0
+
+        if not(save_trace):
+            self._rlw = []
+            self._rrw = []
+            self._flw = []
+            self._frw = []
 
         return res
 
@@ -722,8 +714,8 @@ class VehicleTrajectoryBuilder:
                 best_qat = self._qat
                 best_y = copy.deepcopy(self._sb._y)
 
-        self._qat = best_qat
         self._sb.build(x, best_y, self._dfl, self._dfr)
+        self._qat = self._quality_along_trajectory(miles, save_trace = True)
         self._trained = True
         print 'Best: {}'.format(best_qat)
 
@@ -923,8 +915,8 @@ if __name__ == '__main__':
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
     # Tester().test_trajectory_drawing()
-    Tester().test_quality_along_trajectory()
-    # Tester().test_train_trajectory()
+    # Tester().test_quality_along_trajectory()
+    Tester().test_train_trajectory()
 
     # main('samples/2_holes.png')
     pass
