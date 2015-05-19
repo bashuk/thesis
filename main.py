@@ -481,6 +481,10 @@ class VehicleTrajectoryBuilder:
         # The more - the better.
         # Implemented with the method of right rectangles
         Q1 = 0.0
+        # TODO 1: this is no longer valid, update.
+        # Q2 corresponds to the length of the trajectory. 
+        # The less - the better.
+        Q2 = 0.0
         for i in xrange(1, len(self._sb.mile)):
             # print 'i', i # debug
             # print 'mile', self._sb.mile_length # debug
@@ -541,6 +545,9 @@ class VehicleTrajectoryBuilder:
                 Q1 += area * self._qfb.Q(*lw) # right wheel
                 self._frw.append(rw)
                 # print 'lw rw', lw, rw # debug
+
+                # All 4 wheels move straight forward
+                Q2 += 4.0 * self._sb.mile_length
             else:
                 # print 'Case 2' # debug
                 # Case 2: arc
@@ -602,8 +609,10 @@ class VehicleTrajectoryBuilder:
                 start_w = start + wheel_move
                 rel_start_w = start_w - co
                 rel_mid_w = np.dot(rot_m, rel_start_w)
-                inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
-                outer_r = inner_r + self._car.wheel
+                wheel_r = np.linalg.norm(rel_mid_w)
+                inner_r = wheel_r - self._car.wheel * 0.5
+                outer_r = wheel_r + self._car.wheel * 0.5
+                Q2 += wheel_r * abs(ca)
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
@@ -614,8 +623,10 @@ class VehicleTrajectoryBuilder:
                 start_w = start - wheel_move
                 rel_start_w = start_w - co
                 rel_mid_w = np.dot(rot_m, rel_start_w)
-                inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
-                outer_r = inner_r + self._car.wheel
+                wheel_r = np.linalg.norm(rel_mid_w)
+                inner_r = wheel_r - self._car.wheel * 0.5
+                outer_r = wheel_r + self._car.wheel * 0.5
+                Q2 += wheel_r * abs(ca)
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
@@ -626,8 +637,10 @@ class VehicleTrajectoryBuilder:
                 start_w = start + front_move + wheel_move
                 rel_start_w = start_w - co
                 rel_mid_w = np.dot(rot_m, rel_start_w)
-                inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
-                outer_r = inner_r + self._car.wheel
+                wheel_r = np.linalg.norm(rel_mid_w)
+                inner_r = wheel_r - self._car.wheel * 0.5
+                outer_r = wheel_r + self._car.wheel * 0.5
+                Q2 += wheel_r * abs(ca)
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
@@ -638,8 +651,10 @@ class VehicleTrajectoryBuilder:
                 start_w = start + front_move - wheel_move
                 rel_start_w = start_w - co
                 rel_mid_w = np.dot(rot_m, rel_start_w)
-                inner_r = np.linalg.norm(rel_mid_w) - self._car.wheel * 0.5
-                outer_r = inner_r + self._car.wheel
+                wheel_r = np.linalg.norm(rel_mid_w)
+                inner_r = wheel_r - self._car.wheel * 0.5
+                outer_r = wheel_r + self._car.wheel * 0.5
+                Q2 += wheel_r * abs(ca)
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
@@ -648,12 +663,6 @@ class VehicleTrajectoryBuilder:
             # print 'Q1', Q1 # debug
             # print '----------------------------' # debug
             # raw_input() # debug
-
-        # TODO 1: this is no longer valid, update.
-        # Q2 is the integral over constant scalar field.
-        # This corresponds to the length of the trajectory. 
-        # The less - the better.
-        Q2 = miles * self._sb.mile_length
 
         # Total quality along the trajectory.
         # The more - the better.
