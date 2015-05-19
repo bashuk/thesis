@@ -481,10 +481,10 @@ class VehicleTrajectoryBuilder:
         # The more - the better.
         # Implemented with the method of right rectangles
         Q1 = 0.0
-        # TODO 1: this is no longer valid, update.
         # Q2 corresponds to the length of the trajectory. 
         # The less - the better.
         Q2 = 0.0
+        # TODO 1: introduce Q3, the curvature coefficient
         for i in xrange(1, len(self._sb.mile)):
             # print 'i', i # debug
             # print 'mile', self._sb.mile_length # debug
@@ -668,8 +668,9 @@ class VehicleTrajectoryBuilder:
         # The more - the better.
         # Q1: [0.0 .. 4 * wheel * w]
         # Q2: [qfb.w .. sinusoidal_length]
+        # TODO 2: tune the ratio
         res = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0 \
-            - Q2 / self._qfb.w * 1.0
+            - Q2 / self._qfb.w * 40.0
 
         if not(save_trace):
             self._rlw = []
@@ -683,7 +684,7 @@ class VehicleTrajectoryBuilder:
         """
         Trains the spline so that it has the best quality.
         """
-        # TODO 1: train softly
+        # TODO 2: try training softly
         miles = points * miles_per_point
 
         # Choosing from given number of random trajectories
@@ -692,7 +693,7 @@ class VehicleTrajectoryBuilder:
         best_qat = self._qat
         best_y = copy.deepcopy(self._sb._y)
 
-        for attempt in xrange(10):
+        for attempt in xrange(5):
             # These two parameters define the process of optimization
             # Also, they define the number of iterations
             jump_step = self._qfb.h
@@ -777,7 +778,7 @@ class VehicleTrajectoryBuilder:
         """
         Saves an image of the terrain combined with the trajectory curves.
         """
-        # TODO 2: draw all 4 wheels
+        # TODO 1: draw all 4 wheels
         w, h = int(self._w * scale), int(self._h * scale)
         im = PIL.Image.new("RGB", (w, h))
         pix = im.load()
@@ -878,24 +879,24 @@ class Tester:
         vtb = VehicleTrajectoryBuilder(qfb, car)
 
         x, y = vtb._generate_straight_trajectory(10, rebuild_spline = False)
-        y[1] += 0.0
-        y[2] += 5.0
-        y[3] += 10.0
-        y[4] += 15.0
-        y[5] += 15.0
-        y[6] += 15.0
-        y[7] += 15.0
-        y[8] += 10.0
-        y[9] += 5.0
+        y[1] -= 15.0
+        y[2] -= 25.0
+        y[3] -= 25.0
+        y[4] -= 30.0
+        y[5] -= 35.0
+        y[6] -= 40.0
+        y[7] -= 35.0
+        y[8] -= 20.0
+        y[9] -= 5.0
         vtb._sb.build(x, y)
-        print vtb._quality_along_trajectory(100)
+        print vtb._quality_along_trajectory(100, save_trace = True)
         
         vtb.show()
 
     # @profilehooks.profile
     def test_train_trajectory(self):
         qfb = QualityFunctionBuilder()
-        qfb.load_from_image('samples/2_holes.png')
+        qfb.load_from_image('samples/many_holes.png')
         qfb.set_custom_terrain_size((1500, 300))
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
