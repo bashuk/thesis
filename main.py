@@ -399,6 +399,9 @@ class VehicleTrajectoryBuilder:
         self._dfr = dfr if dfr is not None else 0.0
         # Quality along trajectory
         self._qat = - 10 ** 9
+        self._Q1 = - 10 ** 9
+        self._Q2 = - 10 ** 9
+        self._Q3 = - 10 ** 9
         # Trained flag
         self._trained = False
         # wheels traces
@@ -484,7 +487,9 @@ class VehicleTrajectoryBuilder:
         # Q2 corresponds to the length of the trajectory. 
         # The less - the better.
         Q2 = 0.0
-        # TODO 1: introduce Q3, the curvature coefficient
+        # Q3 corresponds to the curvature of the trajectory.
+        # The less - the better.
+        Q3 = 0.0
         for i in xrange(1, len(self._sb.mile)):
             # print 'i', i # debug
             # print 'mile', self._sb.mile_length # debug
@@ -523,6 +528,9 @@ class VehicleTrajectoryBuilder:
                     np.array([np.cos(a1), np.sin(a1)])
                 # print 'area', area # debug
                 # print 'mimv', mile_move # debug
+
+                # For a line, there is no curvature.
+                Q3 += 0.0
 
                 # Rear wheels
                 rear = start + mile_move # rear suspention center
@@ -599,6 +607,10 @@ class VehicleTrajectoryBuilder:
                     ca = - ca
                 # print 'co cr ca', co, cr, ca # debug
 
+                # For an arc, the smaller is radius and the bigger is
+                # the angle of the arc – the bigger is the curvature.
+                Q3 += abs(ca) / cr
+
                 # Rotation matrix (rotates the half of the arc angle)
                 rot_a = ca * 0.5
                 rot_m = np.array([[np.cos(rot_a), - np.sin(rot_a)], 
@@ -669,8 +681,11 @@ class VehicleTrajectoryBuilder:
         # Q1: [0.0 .. 4 * wheel * w]
         # Q2: [qfb.w .. sinusoidal_length]
         # TODO 2: tune the ratio
-        res = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0 \
-            - Q2 / self._qfb.w * 40.0
+        self._Q1 = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0
+        self._Q2 = - Q2 / self._qfb.w * 40.0 * 0
+        self._Q3 = - Q3 * 5000.0
+
+        res = self._Q1 + self._Q2 + self._Q3
 
         if not(save_trace):
             self._rlw = []
@@ -712,9 +727,17 @@ class VehicleTrajectoryBuilder:
                     y[point] = init_point_y - jump_step
                     self._try_alternative_trajectory(x, y, miles)
 
+                    q1 = int(self._Q1 * 10000.0) * 0.0001
+                    q2 = int(self._Q2 * 10000.0) * 0.0001
+                    q3 = int(self._Q3 * 10000.0) * 0.0001
+                    q1 = "-INF" if q1 < - 10 ** 9 else q1
+                    q2 = "-INF" if q2 < - 10 ** 9 else q2
+                    q3 = "-INF" if q3 < - 10 ** 9 else q3
                     sys.stdout.write(
-                        "\rAttempt #{}: jump = {}, quality = {}".format(
-                        attempt + 1, jump_step, self._qat))
+                        ("\rAttempt #{}: jump = {}, quality = {}" + 
+                            " (Q1 = {}, Q2 = {}, Q3 = {})        ").format(
+                        attempt + 1, jump_step, self._qat,
+                        q1, q2, q3))
                     sys.stdout.flush()
                     # self.show()
                 jump_step *= 0.5
@@ -778,7 +801,7 @@ class VehicleTrajectoryBuilder:
         """
         Saves an image of the terrain combined with the trajectory curves.
         """
-        # TODO 1: draw all 4 wheels
+        # TODO 3: draw all 4 wheels
         w, h = int(self._w * scale), int(self._h * scale)
         im = PIL.Image.new("RGB", (w, h))
         pix = im.load()
@@ -896,7 +919,7 @@ class Tester:
     # @profilehooks.profile
     def test_train_trajectory(self):
         qfb = QualityFunctionBuilder()
-        qfb.load_from_image('samples/many_holes.png')
+        qfb.load_from_image('samples/2_holes.png')
         qfb.set_custom_terrain_size((1500, 300))
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
