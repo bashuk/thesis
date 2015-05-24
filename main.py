@@ -23,6 +23,16 @@ __maintainer__ = "Alex Bashuk"
 __email__ = "alex@bashuk.tk"
 __status__ = "Development"
 
+DEBUG = True
+
+def log(message, force = False):
+    """
+    Helper function. Prints message to STDOUT in debug mode, or if forced.
+    """
+    if DEBUG or force:
+        sys.stdout.write(message)
+        sys.stdout.flush()
+
 class SplineBuilder:
     """
     Spline builder class.
@@ -399,9 +409,7 @@ class VehicleTrajectoryBuilder:
         self._dfr = dfr if dfr is not None else 0.0
         # Quality along trajectory
         self._qat = - 10 ** 9
-        self._Q1 = - 10 ** 9
-        self._Q2 = - 10 ** 9
-        self._Q3 = - 10 ** 9
+        self._qs = ()
         # Trained flag
         self._trained = False
         # wheels traces
@@ -424,7 +432,8 @@ class VehicleTrajectoryBuilder:
         if rebuild_spline:
             self._sb.build(x, y, self._dfl, self._dfr)
             miles = points * miles_per_point
-            self._qat = self._quality_along_trajectory(miles)
+            self._qat, self._qs = \
+                self._quality_along_trajectory(miles)
 
         return x, y
 
@@ -443,7 +452,8 @@ class VehicleTrajectoryBuilder:
         if rebuild_spline:
             self._sb.build(x, y, self._dfl, self._dfr)
             miles = points * miles_per_point
-            self._qat = self._quality_along_trajectory(miles)
+            self._qat, self._qs = \
+                self._quality_along_trajectory(miles)
 
         return x, y
 
@@ -459,9 +469,10 @@ class VehicleTrajectoryBuilder:
         cur_y = copy.deepcopy(self._sb._y)
 
         self._sb.build(new_x, new_y, self._dfl, self._dfr)
-        new_qat = self._quality_along_trajectory(miles)
+        new_qat, new_qs = self._quality_along_trajectory(miles)
         if new_qat > self._qat or force:
             self._qat = new_qat
+            self._qs = new_qs
             return True
         else:
             self._sb.build(cur_x, cur_y, self._dfl, self._dfr)
@@ -609,7 +620,7 @@ class VehicleTrajectoryBuilder:
 
                 # For an arc, the smaller is radius and the bigger is
                 # the angle of the arc – the bigger is the curvature.
-                Q3 += abs(ca) / cr
+                Q3 += abs(ca)
 
                 # Rotation matrix (rotates the half of the arc angle)
                 rot_a = ca * 0.5
@@ -680,12 +691,13 @@ class VehicleTrajectoryBuilder:
         # The more - the better.
         # Q1: [0.0 .. 4 * wheel * w]
         # Q2: [qfb.w .. sinusoidal_length]
+        # Q3: [0.0 .. 1.0-ish]
         # TODO 2: tune the ratio
-        self._Q1 = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0
-        self._Q2 = - Q2 / self._qfb.w * 40.0 * 0
-        self._Q3 = - Q3 * 5000.0
+        Q1 = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0
+        Q2 = - Q2 / self._qfb.w * 1.0
+        Q3 = - Q3 * 1.0
 
-        res = self._Q1 + self._Q2 + self._Q3
+        res = Q1 + Q2 + Q3
 
         if not(save_trace):
             self._rlw = []
@@ -693,7 +705,7 @@ class VehicleTrajectoryBuilder:
             self._flw = []
             self._frw = []
 
-        return res
+        return res, (Q1, Q2, Q3)
 
     def train_trajectory(self, points = 10, miles_per_point = 10):
         """
@@ -707,6 +719,7 @@ class VehicleTrajectoryBuilder:
         x = copy.deepcopy(self._sb._x)
         best_qat = self._qat
         best_y = copy.deepcopy(self._sb._y)
+        log("\rAttempt #0: quality = {} {}\n".format(self._qat, self._qs))
 
         for attempt in xrange(5):
             # These two parameters define the process of optimization
@@ -727,18 +740,8 @@ class VehicleTrajectoryBuilder:
                     y[point] = init_point_y - jump_step
                     self._try_alternative_trajectory(x, y, miles)
 
-                    q1 = int(self._Q1 * 10000.0) * 0.0001
-                    q2 = int(self._Q2 * 10000.0) * 0.0001
-                    q3 = int(self._Q3 * 10000.0) * 0.0001
-                    q1 = "-INF" if q1 < - 10 ** 9 else q1
-                    q2 = "-INF" if q2 < - 10 ** 9 else q2
-                    q3 = "-INF" if q3 < - 10 ** 9 else q3
-                    sys.stdout.write(
-                        ("\rAttempt #{}: jump = {}, quality = {}" + 
-                            " (Q1 = {}, Q2 = {}, Q3 = {})        ").format(
-                        attempt + 1, jump_step, self._qat,
-                        q1, q2, q3))
-                    sys.stdout.flush()
+                    log("\rAttempt #{}: jump = {}, quality = {} {}".format(
+                        attempt + 1, jump_step, self._qat, self._qs))
                     # self.show()
                 jump_step *= 0.5
             sys.stdout.write("\n")
@@ -748,7 +751,8 @@ class VehicleTrajectoryBuilder:
                 best_y = copy.deepcopy(self._sb._y)
 
         self._sb.build(x, best_y, self._dfl, self._dfr)
-        self._qat = self._quality_along_trajectory(miles, save_trace = True)
+        self._qat, self._qs = self._quality_along_trajectory(
+            miles, save_trace = True)
         self._trained = True
         print 'Best: {}'.format(best_qat)
 
@@ -912,7 +916,8 @@ class Tester:
         y[8] -= 20.0
         y[9] -= 5.0
         vtb._sb.build(x, y)
-        print vtb._quality_along_trajectory(100, save_trace = True)
+        qat, qs = vtb._quality_along_trajectory(100, save_trace = True)
+        print qat
         
         vtb.show()
 
