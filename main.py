@@ -939,27 +939,22 @@ class Tester:
 def main(filename):
     qfb = QualityFunctionBuilder()
     qfb.load_from_image(filename)
+    qfb.set_custom_terrain_size((1500, 300))
     car = CarBuilder()
 
     vtb = VehicleTrajectoryBuilder(qfb, car)
-    vtb.train_trajectory()
-
-    f = filename.split('.')
-    f.insert(-1, 'solved')
-    new_filename = '.'.join(f)
-    vtb.save_to_file(new_filename)
+    vtb.train_trajectory(10)
+    vtb.show()
 
 if __name__ == '__main__':
-    # print "Python loaded. Let's rock!"
     # Tester().test_spline_builder()
     # Tester().test_spline_split_by_length(5)
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
     # Tester().test_trajectory_drawing()
     # Tester().test_quality_along_trajectory()
-    Tester().test_train_trajectory()
-
-    # main('samples/2_holes.png')
+    # Tester().test_train_trajectory()
+    main('samples/2_holes.png')
     pass
 
 # TODO 3: implement various checks and validations for ALL methods
