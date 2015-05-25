@@ -809,7 +809,6 @@ class VehicleTrajectoryBuilder:
         """
         Saves an image of the terrain combined with the trajectory curves.
         """
-        # TODO 3: draw all 4 wheels
         w, h = int(self._w * scale), int(self._h * scale)
         im = PIL.Image.new("RGB", (w, h))
         pix = im.load()
@@ -967,8 +966,8 @@ if __name__ == '__main__':
 # TODO 3: make global constants (parameters of the algo)
 # TODO 3: add information messages to console
 # TODO 3: optimize code
-
-
+# TODO 3: implement saving to file with all 4 wheels
+# TODO 3: split into several files (one file - one class)
 
 
 
