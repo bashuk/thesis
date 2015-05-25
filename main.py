@@ -740,7 +740,9 @@ class VehicleTrajectoryBuilder:
                     y[point] = init_point_y - jump_step
                     self._try_alternative_trajectory(x, y, miles)
 
-                    log("\rAttempt #{}: jump = {}, quality = {} {}".format(
+                    # Clear current line, then write again
+                    sys.stdout.write('\x1b[2K\r')
+                    log("Attempt #{}: jump = {}, quality = {} {}".format(
                         attempt + 1, jump_step, self._qat, self._qs))
                     # self.show()
                 jump_step *= 0.5
