@@ -522,6 +522,14 @@ class VehicleTrajectoryBuilder:
             tire_move = (self._car.wheel * 0.5) * np.array(
                     [np.cos(a1 + np.pi * 0.5), np.sin(a1 + np.pi * 0.5)])
 
+            # rbm = road bottom value
+            # When Q(x, y) == 1.0, we want to take this point, so it counts
+            # as 1.0.
+            # But when it's bottom (i.e., Q == 0.0), this is very bad for
+            # the car, so we want to count it not as 0.0, but a much smaller
+            # value. For example, - 100.0.
+            rbm = - 100.0
+
             if abs(a1 - a2) < 1e-5:
                 # Case 1: line
                 # All wheels will cover the same area in this case.
@@ -536,31 +544,39 @@ class VehicleTrajectoryBuilder:
 
                 # Rear wheels
                 rear = start + mile_move # rear suspention center
-                lw = rear + wheel_move
-                Q1 += area * self._qfb.Q(*lw) # left wheel
+                w = rear + wheel_move # left wheel
+                qfbQ = self._qfb.Q(*w)
+                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                Q1 += float(area * value)
                 if save_trace:
-                    self._wtrace[0].append(lw - tire_move)
-                    self._wtrace[1].append(lw + tire_move)
+                    self._wtrace[0].append(w - tire_move)
+                    self._wtrace[1].append(w + tire_move)
 
-                rw = rear - wheel_move
-                Q1 += area * self._qfb.Q(*lw) # right wheel
+                w = rear - wheel_move # right wheel
+                qfbQ = self._qfb.Q(*w)
+                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                Q1 += float(area * value)
                 if save_trace:
-                    self._wtrace[2].append(rw + tire_move)
-                    self._wtrace[3].append(rw - tire_move)
+                    self._wtrace[2].append(w + tire_move)
+                    self._wtrace[3].append(w - tire_move)
 
                 # Front wheels
                 front = start + mile_move + front_move # front suspention center
-                lw = front + wheel_move
-                Q1 += area * self._qfb.Q(*lw) # left wheel
+                w = front + wheel_move # left wheel
+                qfbQ = self._qfb.Q(*w)
+                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                Q1 += float(area * value)
                 if save_trace:
-                    self._wtrace[4].append(lw - tire_move)
-                    self._wtrace[5].append(lw + tire_move)
+                    self._wtrace[4].append(w - tire_move)
+                    self._wtrace[5].append(w + tire_move)
 
-                rw = front - wheel_move
-                Q1 += area * self._qfb.Q(*lw) # right wheel
+                w = front - wheel_move # right wheel
+                qfbQ = self._qfb.Q(*w)
+                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                Q1 += float(area * value)
                 if save_trace:
-                    self._wtrace[6].append(rw + tire_move)
-                    self._wtrace[7].append(rw - tire_move)
+                    self._wtrace[6].append(w + tire_move)
+                    self._wtrace[7].append(w - tire_move)
 
                 # All 4 wheels move straight forward
                 Q2 += 4.0 * self._sb.mile_length
@@ -639,7 +655,9 @@ class VehicleTrajectoryBuilder:
                 Q2 += wheel_r * abs(ca)
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
-                Q1 += float(area * self._qfb.Q(*mid_w))
+                qfbQ = self._qfb.Q(*mid_w)
+                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                Q1 += float(area * value)
                 if save_trace:
                     tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
                     tire_move *= self._car.wheel * 0.5
@@ -656,7 +674,9 @@ class VehicleTrajectoryBuilder:
                 Q2 += wheel_r * abs(ca)
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
-                Q1 += float(area * self._qfb.Q(*mid_w))
+                qfbQ = self._qfb.Q(*mid_w)
+                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                Q1 += float(area * value)
                 if save_trace:
                     tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
                     tire_move *= self._car.wheel * 0.5
@@ -673,7 +693,9 @@ class VehicleTrajectoryBuilder:
                 Q2 += wheel_r * abs(ca)
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
-                Q1 += float(area * self._qfb.Q(*mid_w))
+                qfbQ = self._qfb.Q(*mid_w)
+                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                Q1 += float(area * value)
                 if save_trace:
                     tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
                     tire_move *= self._car.wheel * 0.5
@@ -690,7 +712,9 @@ class VehicleTrajectoryBuilder:
                 Q2 += wheel_r * abs(ca)
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
-                Q1 += float(area * self._qfb.Q(*mid_w))
+                qfbQ = self._qfb.Q(*mid_w)
+                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                Q1 += float(area * value)
                 if save_trace:
                     tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
                     tire_move *= self._car.wheel * 0.5
