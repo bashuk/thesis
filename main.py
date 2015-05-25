@@ -413,10 +413,11 @@ class VehicleTrajectoryBuilder:
         # Trained flag
         self._trained = False
         # wheels traces
-        self._rlw = []
-        self._rrw = []
-        self._flw = []
-        self._frw = []
+        # 0, 1 - rear left inner, outer
+        # 2, 3 - rear right inner, outer
+        # 4, 5 - front left inner, outer
+        # 6, 7 - front right inner, outer
+        self._wtrace = [[] for i in xrange(8)]
 
     def _generate_straight_trajectory(self, points, miles_per_point = 10,
         rebuild_spline = True):
@@ -485,10 +486,7 @@ class VehicleTrajectoryBuilder:
         self._sb.split_by_length(miles)
 
         # wheels traces
-        self._rlw = []
-        self._rrw = []
-        self._flw = []
-        self._frw = []
+        self._wtrace = [[] for i in xrange(8)]
 
         # Q1 is integral over quality function. 
         # This corresponds to quality of the road. 
@@ -521,6 +519,8 @@ class VehicleTrajectoryBuilder:
             front_move = (self._car.length) * np.array([np.cos(a1), np.sin(a1)])
             wheel_move = (self._car.width * 0.5) * np.array(
                     [np.cos(a1 + np.pi * 0.5), np.sin(a1 + np.pi * 0.5)])
+            tire_move = (self._car.wheel * 0.5) * np.array(
+                    [np.cos(a1 + np.pi * 0.5), np.sin(a1 + np.pi * 0.5)])
 
             if abs(a1 - a2) < 1e-5:
                 # Case 1: line
@@ -538,21 +538,29 @@ class VehicleTrajectoryBuilder:
                 rear = start + mile_move # rear suspention center
                 lw = rear + wheel_move
                 Q1 += area * self._qfb.Q(*lw) # left wheel
-                self._rlw.append(lw)
+                if save_trace:
+                    self._wtrace[0].append(lw - tire_move)
+                    self._wtrace[1].append(lw + tire_move)
 
                 rw = rear - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
-                self._rrw.append(rw)
+                if save_trace:
+                    self._wtrace[2].append(rw + tire_move)
+                    self._wtrace[3].append(rw - tire_move)
 
                 # Front wheels
                 front = start + mile_move + front_move # front suspention center
                 lw = front + wheel_move
                 Q1 += area * self._qfb.Q(*lw) # left wheel
-                self._flw.append(lw)
+                if save_trace:
+                    self._wtrace[4].append(lw - tire_move)
+                    self._wtrace[5].append(lw + tire_move)
 
                 rw = front - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
-                self._frw.append(rw)
+                if save_trace:
+                    self._wtrace[6].append(rw + tire_move)
+                    self._wtrace[7].append(rw - tire_move)
 
                 # All 4 wheels move straight forward
                 Q2 += 4.0 * self._sb.mile_length
@@ -614,6 +622,13 @@ class VehicleTrajectoryBuilder:
                 rot_m = np.array([[np.cos(rot_a), - np.sin(rot_a)], 
                     [np.sin(rot_a), np.cos(rot_a)]])
 
+                # clock = - sgn(ca)
+                # this is needed to compute wheel traces
+                if ca > 0.0:
+                    clock = 1.0
+                else:
+                    clock = - 1.0
+
                 # Rear left wheel
                 start_w = start + wheel_move
                 rel_start_w = start_w - co
@@ -625,7 +640,11 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
-                self._rlw.append(mid_w)
+                if save_trace:
+                    tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
+                    tire_move *= self._car.wheel * 0.5
+                    self._wtrace[0].append(mid_w + clock * tire_move)
+                    self._wtrace[1].append(mid_w - clock * tire_move)
 
                 # Rear right wheel
                 start_w = start - wheel_move
@@ -638,7 +657,11 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
-                self._rrw.append(mid_w)
+                if save_trace:
+                    tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
+                    tire_move *= self._car.wheel * 0.5
+                    self._wtrace[2].append(mid_w - clock * tire_move)
+                    self._wtrace[3].append(mid_w + clock * tire_move)
 
                 # Front left wheel
                 start_w = start + front_move + wheel_move
@@ -651,7 +674,11 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
-                self._flw.append(mid_w)
+                if save_trace:
+                    tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
+                    tire_move *= self._car.wheel * 0.5
+                    self._wtrace[4].append(mid_w + clock * tire_move)
+                    self._wtrace[5].append(mid_w - clock * tire_move)
 
                 # Front right wheel
                 start_w = start + front_move - wheel_move
@@ -664,7 +691,11 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
-                self._frw.append(mid_w)
+                if save_trace:
+                    tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
+                    tire_move *= self._car.wheel * 0.5
+                    self._wtrace[6].append(mid_w - clock * tire_move)
+                    self._wtrace[7].append(mid_w + clock * tire_move)
 
         # Total quality along the trajectory.
         # The more - the better.
@@ -677,12 +708,6 @@ class VehicleTrajectoryBuilder:
         Q3 = - Q3 * 1.0
 
         res = Q1 + Q2 + Q3
-
-        if not(save_trace):
-            self._rlw = []
-            self._rrw = []
-            self._flw = []
-            self._frw = []
 
         return res, (Q1, Q2, Q3)
 
@@ -700,7 +725,7 @@ class VehicleTrajectoryBuilder:
         best_y = copy.deepcopy(self._sb._y)
         log("\rAttempt #0: quality = {} {}\n".format(self._qat, self._qs))
 
-        for attempt in xrange(5):
+        for attempt in xrange(1):
             # These two parameters define the process of optimization
             # Also, they define the number of iterations
             jump_step = self._qfb.h
@@ -765,18 +790,16 @@ class VehicleTrajectoryBuilder:
         plt.plot(self._sb._x, self._sb._y, 'bo', label='Key points')
 
         # wheels traces
-        rl_x = [w[0] for w in self._rlw]
-        rl_y = [w[1] for w in self._rlw]
-        plt.plot(rl_x, rl_y, 'yo')
-        rr_x = [w[0] for w in self._rrw]
-        rr_y = [w[1] for w in self._rrw]
-        plt.plot(rr_x, rr_y, 'yo')
-        fl_x = [w[0] for w in self._flw]
-        fl_y = [w[1] for w in self._flw]
-        plt.plot(fl_x, fl_y, 'co')
-        fr_x = [w[0] for w in self._frw]
-        fr_y = [w[1] for w in self._frw]
-        plt.plot(fr_x, fr_y, 'co')
+        # rear wheels
+        for trace in self._wtrace[:4]:
+            wx = [w[0] for w in trace]
+            wy = [w[1] for w in trace]
+            plt.plot(wx, wy, 'y-')
+        # front wheels
+        for trace in self._wtrace[4:]:
+            wx = [w[0] for w in trace]
+            wy = [w[1] for w in trace]
+            plt.plot(wx, wy, 'c--')
 
         plt.title('Optimal trajectory')
         plt.axis([Q_x[0], Q_x[-1], Q_y[0], Q_y[-1]])
