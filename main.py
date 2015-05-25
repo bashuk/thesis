@@ -704,8 +704,8 @@ class VehicleTrajectoryBuilder:
         # Q3: [0.0 .. 1.0-ish]
         # TODO 2: tune the ratio
         Q1 = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0
-        Q2 = - Q2 / self._qfb.w * 1.0
-        Q3 = - Q3 * 1.0
+        Q2 = - Q2 / self._qfb.w * 1.0 * 0
+        Q3 = - Q3 * 5.0 * 0
 
         res = Q1 + Q2 + Q3
 
@@ -719,13 +719,13 @@ class VehicleTrajectoryBuilder:
         miles = points * miles_per_point
 
         # Choosing from given number of random trajectories
-        self._generate_straight_trajectory(points, miles_per_point)
+        self._generate_random_trajectory(points, miles_per_point)
         x = copy.deepcopy(self._sb._x)
         best_qat = self._qat
         best_y = copy.deepcopy(self._sb._y)
         log("\rAttempt #0: quality = {} {}\n".format(self._qat, self._qs))
 
-        for attempt in xrange(1):
+        for attempt in xrange(5):
             # These two parameters define the process of optimization
             # Also, they define the number of iterations
             jump_step = self._qfb.h
@@ -963,7 +963,7 @@ if __name__ == '__main__':
 # TODO 3: optimize code
 # TODO 3: implement saving to file with all 4 wheels
 # TODO 3: split into several files (one file - one class)
-
+# TODO 3: clean deprecated methods
 
 
 
