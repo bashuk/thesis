@@ -502,8 +502,6 @@ class VehicleTrajectoryBuilder:
         # The less - the better.
         Q3 = 0.0
         for i in xrange(1, len(self._sb.mile)):
-            # print 'i', i # debug
-            # print 'mile', self._sb.mile_length # debug
             # Start and end points of the arc
             x1 = self._sb.mile[i - 1]
             y1 = self._sb.f(x1)
@@ -515,8 +513,6 @@ class VehicleTrajectoryBuilder:
             a1 = math.atan(d1)
             d2 = self._sb.der_f(x2)
             a2 = math.atan(d2)
-            # print 'xyda', x1, y1, d1, a1 # debug
-            # print 'xyda', x2, y2, d2, a2 # debug
 
             # Additional vectors for easy computation of coordinates of
             # all 4 wheels
@@ -525,11 +521,8 @@ class VehicleTrajectoryBuilder:
             front_move = (self._car.length) * np.array([np.cos(a1), np.sin(a1)])
             wheel_move = (self._car.width * 0.5) * np.array(
                     [np.cos(a1 + np.pi * 0.5), np.sin(a1 + np.pi * 0.5)])
-            # print 'st fi', start, finish # debug
-            # print 'frmv whmv', front_move, wheel_move # debug
 
             if abs(a1 - a2) < 1e-5:
-                # print 'Case 1' # debug
                 # Case 1: line
                 # All wheels will cover the same area in this case.
                 # The only difference is where we take the average quality -
@@ -537,8 +530,6 @@ class VehicleTrajectoryBuilder:
                 area = self._car.wheel * self._sb.mile_length
                 mile_move = (self._sb.mile_length * 0.5) * \
                     np.array([np.cos(a1), np.sin(a1)])
-                # print 'area', area # debug
-                # print 'mimv', mile_move # debug
 
                 # For a line, there is no curvature.
                 Q3 += 0.0
@@ -552,7 +543,6 @@ class VehicleTrajectoryBuilder:
                 rw = rear - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
                 self._rrw.append(rw)
-                # print 'lw rw', lw, rw # debug
 
                 # Front wheels
                 front = start + mile_move + front_move # front suspention center
@@ -563,12 +553,10 @@ class VehicleTrajectoryBuilder:
                 rw = front - wheel_move
                 Q1 += area * self._qfb.Q(*lw) # right wheel
                 self._frw.append(rw)
-                # print 'lw rw', lw, rw # debug
 
                 # All 4 wheels move straight forward
                 Q2 += 4.0 * self._sb.mile_length
             else:
-                # print 'Case 2' # debug
                 # Case 2: arc
                 # Wheels are moving according to the Ackermann steering.
                 
@@ -616,7 +604,6 @@ class VehicleTrajectoryBuilder:
                 if s > 0:
                     # counter-clockwise order - angle must be negative
                     ca = - ca
-                # print 'co cr ca', co, cr, ca # debug
 
                 # For an arc, the smaller is radius and the bigger is
                 # the angle of the arc – the bigger is the curvature.
@@ -626,7 +613,6 @@ class VehicleTrajectoryBuilder:
                 rot_a = ca * 0.5
                 rot_m = np.array([[np.cos(rot_a), - np.sin(rot_a)], 
                     [np.sin(rot_a), np.cos(rot_a)]])
-                # print 'rot_m', rot_m # debug
 
                 # Rear left wheel
                 start_w = start + wheel_move
@@ -640,7 +626,6 @@ class VehicleTrajectoryBuilder:
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
                 self._rlw.append(mid_w)
-                # print 'rl: area midw', area, mid_w # debug
 
                 # Rear right wheel
                 start_w = start - wheel_move
@@ -654,7 +639,6 @@ class VehicleTrajectoryBuilder:
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
                 self._rrw.append(mid_w)
-                # print 'rr: area midw', area, mid_w # debug
 
                 # Front left wheel
                 start_w = start + front_move + wheel_move
@@ -668,7 +652,6 @@ class VehicleTrajectoryBuilder:
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
                 self._flw.append(mid_w)
-                # print 'fl: area midw', area, mid_w # debug
 
                 # Front right wheel
                 start_w = start + front_move - wheel_move
@@ -682,10 +665,6 @@ class VehicleTrajectoryBuilder:
                 mid_w = rel_mid_w + co
                 Q1 += float(area * self._qfb.Q(*mid_w))
                 self._frw.append(mid_w)
-                # print 'fr: area midw', area, mid_w # debug
-            # print 'Q1', Q1 # debug
-            # print '----------------------------' # debug
-            # raw_input() # debug
 
         # Total quality along the trajectory.
         # The more - the better.
@@ -961,7 +940,6 @@ if __name__ == '__main__':
     # main('samples/2_holes.png')
     pass
 
-# TODO 3: remove #debug lines
 # TODO 3: implement various checks and validations for ALL methods
 # TODO 3: make global constants (parameters of the algo)
 # TODO 3: add information messages to console
