@@ -29,6 +29,7 @@ def log(message, force = False):
     """
     Helper function. Prints message to STDOUT in debug mode, or if forced.
     """
+    message = str(message)
     if DEBUG or force:
         sys.stdout.write(message)
         sys.stdout.flush()
@@ -631,7 +632,7 @@ class VehicleTrajectoryBuilder:
 
                 # For an arc, the smaller is radius and the bigger is
                 # the angle of the arc – the bigger is the curvature.
-                Q3 += abs(ca)
+                Q3 += 1.0 / cr
 
                 # Rotation matrix (rotates the half of the arc angle)
                 rot_a = ca * 0.5
@@ -728,10 +729,10 @@ class VehicleTrajectoryBuilder:
         # Q3: [0.0 .. 1.0-ish]
         # TODO 2: tune the ratio
         Q1 = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0
-        Q2 = - Q2 / self._qfb.w * 1.0 * 0
-        Q3 = - Q3 * 5.0 * 0
+        Q2 = - Q2 * 0.1
+        Q3 = - Q3 * 100.0
 
-        res = Q1 + Q2 + Q3
+        res = Q1 + Q2
 
         return res, (Q1, Q2, Q3)
 
@@ -743,7 +744,7 @@ class VehicleTrajectoryBuilder:
         miles = points * miles_per_point
 
         # Choosing from given number of random trajectories
-        self._generate_random_trajectory(points, miles_per_point)
+        self._generate_straight_trajectory(points, miles_per_point)
         x = copy.deepcopy(self._sb._x)
         best_qat = self._qat
         best_y = copy.deepcopy(self._sb._y)
@@ -944,9 +945,10 @@ class Tester:
         y[9] -= 5.0
         vtb._sb.build(x, y)
         qat, qs = vtb._quality_along_trajectory(100, save_trace = True)
-        print qat
+        log("Attempt #0: quality = {} {}\n".format(qat, qs))
+        print
         
-        vtb.show()
+        # vtb.show()
 
     # @profilehooks.profile
     def test_train_trajectory(self):
@@ -976,9 +978,11 @@ if __name__ == '__main__':
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
     # Tester().test_trajectory_drawing()
-    # Tester().test_quality_along_trajectory()
+    Tester().test_quality_along_trajectory()
     # Tester().test_train_trajectory()
+
     main('samples/2_holes.png')
+    # main('samples/many_holes.png')
     pass
 
 # TODO 3: implement various checks and validations for ALL methods
