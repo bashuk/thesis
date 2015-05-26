@@ -32,6 +32,7 @@ DEFAULT_MILES_PER_POINT = 10
 DEFAULT_POINTS = 10
 DEFAULT_ATTEMPTS = 5
 DEFAULT_SAVE_TO_FILE_SCALE = 1.0
+DEFAULT_FILENAME = 'samples/3.png'
 ROAD_BOTTOM_VALUE = -100.0
 JUMP_STEP_MULTIPLIER = 0.5
 Q1_SCALE = 100.0
@@ -1002,12 +1003,14 @@ if __name__ == '__main__':
     # Tester().test_quality_along_trajectory()
     # Tester().test_train_trajectory()
 
-    main('samples/2.png')
+    if len(sys.argv) == 1:
+        main(DEFAULT_FILENAME)
+    else:
+        filename = sys.argv[1]
+        main(filename)
     # main('samples/3.png')
     pass
 
-# TODO 3: make filename a console call argument
-# TODO 3: make global constants (parameters of the algo)
 # TODO 3: optimize code
 # TODO 3: check if goes beyond the left-right borders
 
