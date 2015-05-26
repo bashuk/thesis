@@ -729,14 +729,14 @@ class VehicleTrajectoryBuilder:
         # Q3: [0.0 .. 1.0-ish]
         # TODO 2: tune the ratio
         Q1 = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0
-        Q2 = - Q2 * 0.1
+        Q2 = - Q2 * 0.5
         Q3 = - Q3 * 100.0
 
         res = Q1 + Q2
 
         return res, (Q1, Q2, Q3)
 
-    def train_trajectory(self, points = 10, miles_per_point = 10):
+    def train_trajectory(self, attempts = 5, points = 10, miles_per_point = 10):
         """
         Trains the spline so that it has the best quality.
         """
@@ -750,7 +750,7 @@ class VehicleTrajectoryBuilder:
         best_y = copy.deepcopy(self._sb._y)
         log("\rAttempt #0: quality = {} {}\n".format(self._qat, self._qs))
 
-        for attempt in xrange(5):
+        for attempt in xrange(attempts):
             # These two parameters define the process of optimization
             # Also, they define the number of iterations
             jump_step = self._qfb.h
@@ -969,7 +969,7 @@ def main(filename):
     car = CarBuilder()
 
     vtb = VehicleTrajectoryBuilder(qfb, car)
-    vtb.train_trajectory(10)
+    vtb.train_trajectory(attempts = 5)
     vtb.show()
 
 if __name__ == '__main__':
