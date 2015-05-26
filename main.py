@@ -380,7 +380,8 @@ class CarBuilder:
     """
     Simple class for containing car parameters.
     """
-    def __init__(self, width = 171, length = 271, wheel = 31.5):
+    def __init__(self, width = 171, length = 271, wheel = 31.5,
+        title = 'Bugatti Veyron 16.4'):
         """
         Default parameters (width = 171, length = 271, wheel = 315) are
         the actual parameters of Bugatti Veyron 16.4, given in cm.
@@ -388,6 +389,7 @@ class CarBuilder:
         self.width = width
         self.length = length
         self.wheel = wheel
+        self.title = title
 
 class VehicleTrajectoryBuilder:
     """
@@ -830,7 +832,8 @@ class VehicleTrajectoryBuilder:
             wy = [w[1] for w in trace]
             plt.plot(wx, wy, 'c--')
 
-        plt.title('Optimal trajectory for a self-driving car')
+        plt.title('Optimal trajectory for a self-driving car ({})'.format(
+            self._car.title))
         plt.axis([Q_x[0], Q_x[-1], Q_y[0], Q_y[-1]])
         plt.show()
 
