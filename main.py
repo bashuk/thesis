@@ -381,10 +381,10 @@ class CarBuilder:
     Simple class for containing car parameters.
     """
     def __init__(self, width = 171, length = 271, wheel = 31.5,
-        title = 'Bugatti Veyron 16.4'):
+        title = 'Bugatti Veyron SS'):
         """
         Default parameters (width = 171, length = 271, wheel = 315) are
-        the actual parameters of Bugatti Veyron 16.4, given in cm.
+        the actual parameters of Bugatti Veyron SS, given in cm.
         """
         self.width = width
         self.length = length
@@ -728,8 +728,7 @@ class VehicleTrajectoryBuilder:
         # The more - the better.
         # Q1: [0.0 .. 4 * wheel * w]
         # Q2: [qfb.w .. sinusoidal_length]
-        # Q3: [0.0 .. 1.0-ish]
-        # TODO 2: tune the ratio
+        # Q3: [0.0 .. 0.1-ish]
         Q1 = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0
         Q2 = - Q2 * 0.5
         Q3 = - Q3 * 100.0
@@ -999,24 +998,3 @@ if __name__ == '__main__':
 # TODO 3: implement saving to file with all 4 wheels
 # TODO 3: split into several files (one file - one class)
 # TODO 3: clean deprecated methods
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
