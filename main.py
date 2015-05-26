@@ -752,6 +752,7 @@ class VehicleTrajectoryBuilder:
 
         return res, (Q1, Q2, Q3)
 
+    # @profilehooks.profile
     def train_trajectory(self, attempts = DEFAULT_ATTEMPTS, points = 
         DEFAULT_POINTS, miles_per_point = DEFAULT_MILES_PER_POINT):
         """
@@ -769,7 +770,7 @@ class VehicleTrajectoryBuilder:
         for attempt in xrange(attempts):
             # These two parameters define the process of optimization
             # Also, they define the number of iterations
-            jump_step = self._qfb.h
+            jump_step = self._car.wheel
             threshold = 1.0
 
             self._generate_random_trajectory(points, miles_per_point)
@@ -972,7 +973,6 @@ class Tester:
         
         # vtb.show()
 
-    # @profilehooks.profile
     def test_train_trajectory(self):
         qfb = QualityFunctionBuilder()
         qfb.load_from_image('samples/2.png')
