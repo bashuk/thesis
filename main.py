@@ -23,7 +23,20 @@ __maintainer__ = "Alex Bashuk"
 __email__ = "alex@bashuk.tk"
 __status__ = "Development"
 
+# Constants
 DEBUG = True
+INFINITY = 10 ** 9
+EPSILON = 10 ** -5
+DEFAULT_INTEGRATION_PIECES_PER_MILE = 10
+DEFAULT_MILES_PER_POINT = 10
+DEFAULT_POINTS = 10
+DEFAULT_ATTEMPTS = 5
+DEFAULT_SAVE_TO_FILE_SCALE = 1.0
+ROAD_BOTTOM_VALUE = -100.0
+JUMP_STEP_MULTIPLIER = 0.5
+Q1_SCALE = 100.0
+Q2_SCALE = 0.5
+Q3_SCALE = 100.0
 
 def log(message, force = False):
     """
@@ -201,7 +214,8 @@ class SplineBuilder:
 
         return der
 
-    def split_by_length(self, miles, integration_pieces_per_mile = 10):
+    def split_by_length(self, miles, integration_pieces_per_mile =
+        DEFAULT_INTEGRATION_PIECES_PER_MILE):
         """
         Splits calculated spline into m pieces, equal by lenght.
         """
@@ -241,7 +255,7 @@ class SplineBuilder:
         """
         Show spline.
         """
-        x = np.linspace(self._x[0], self._x[-1], 400)
+        x = np.linspace(self._x[0], self._x[-1], self._x[-1] - self._x[0] + 1)
         y = [self.f(xi) for xi in x]
 
         dot_x = self._x
@@ -335,7 +349,7 @@ class QualityFunctionBuilder:
             # that splines can go beyond the road, and when calculating
             # the quality for that spline – we don't want it to raise any
             # exceptions, we just want it to make an enormously big jump
-            return - 10 ** 9
+            return - INFINITY
             # raise ValueError("Given point is out of the terrain.")
         # Since we have no info about the quality of the road there, we just
         # have to assume that those values are the same as on the boundaries.
@@ -349,7 +363,7 @@ class QualityFunctionBuilder:
         y = 1.0 * y  * (self._imh - 1) / self.h
 
         # Handling boundaries
-        eps = 10 ** -5
+        eps = EPSILON
         if abs(x) < eps and x <= 0.0:
             x += eps
         if abs(x - (self._imw - 1)) < eps:
@@ -411,7 +425,7 @@ class VehicleTrajectoryBuilder:
         self._dfl = dfl if dfl is not None else 0.0
         self._dfr = dfr if dfr is not None else 0.0
         # Quality along trajectory
-        self._qat = - 10 ** 9
+        self._qat = - INFINITY
         self._qs = ()
         # Trained flag
         self._trained = False
@@ -422,8 +436,8 @@ class VehicleTrajectoryBuilder:
         # 6, 7 - front right inner, outer
         self._wtrace = [[] for i in xrange(8)]
 
-    def _generate_straight_trajectory(self, points, miles_per_point = 10,
-        rebuild_spline = True):
+    def _generate_straight_trajectory(self, points, miles_per_point = 
+        DEFAULT_MILES_PER_POINT, rebuild_spline = True):
         """
         Configures the spline so that it corresponds to simplest straight 
         movement.
@@ -441,8 +455,8 @@ class VehicleTrajectoryBuilder:
 
         return x, y
 
-    def _generate_random_trajectory(self, points, miles_per_point = 10,
-        rebuild_spline = True):
+    def _generate_random_trajectory(self, points, miles_per_point = 
+        DEFAULT_MILES_PER_POINT, rebuild_spline = True):
         """
         Configures the spline so that it defines some random trajectory.
         """
@@ -525,15 +539,15 @@ class VehicleTrajectoryBuilder:
             tire_move = (self._car.wheel * 0.5) * np.array(
                     [np.cos(a1 + np.pi * 0.5), np.sin(a1 + np.pi * 0.5)])
 
-            # rbm = road bottom value
+            # rbv = road bottom value
             # When Q(x, y) == 1.0, we want to take this point, so it counts
             # as 1.0.
             # But when it's bottom (i.e., Q == 0.0), this is very bad for
             # the car, so we want to count it not as 0.0, but a much smaller
             # value. For example, - 100.0.
-            rbm = - 100.0
+            rbv = ROAD_BOTTOM_VALUE
 
-            if abs(a1 - a2) < 1e-5:
+            if abs(a1 - a2) < EPSILON:
                 # Case 1: line
                 # All wheels will cover the same area in this case.
                 # The only difference is where we take the average quality -
@@ -549,7 +563,7 @@ class VehicleTrajectoryBuilder:
                 rear = start + mile_move # rear suspention center
                 w = rear + wheel_move # left wheel
                 qfbQ = self._qfb.Q(*w)
-                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                value = qfbQ ** 2 - rbv * qfbQ + rbv if qfbQ > 0.0 else qfbQ
                 Q1 += float(area * value)
                 if save_trace:
                     self._wtrace[0].append(w - tire_move)
@@ -557,7 +571,7 @@ class VehicleTrajectoryBuilder:
 
                 w = rear - wheel_move # right wheel
                 qfbQ = self._qfb.Q(*w)
-                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                value = qfbQ ** 2 - rbv * qfbQ + rbv if qfbQ > 0.0 else qfbQ
                 Q1 += float(area * value)
                 if save_trace:
                     self._wtrace[2].append(w + tire_move)
@@ -567,7 +581,7 @@ class VehicleTrajectoryBuilder:
                 front = start + mile_move + front_move # front suspention center
                 w = front + wheel_move # left wheel
                 qfbQ = self._qfb.Q(*w)
-                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                value = qfbQ ** 2 - rbv * qfbQ + rbv if qfbQ > 0.0 else qfbQ
                 Q1 += float(area * value)
                 if save_trace:
                     self._wtrace[4].append(w - tire_move)
@@ -575,7 +589,7 @@ class VehicleTrajectoryBuilder:
 
                 w = front - wheel_move # right wheel
                 qfbQ = self._qfb.Q(*w)
-                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                value = qfbQ ** 2 - rbv * qfbQ + rbv if qfbQ > 0.0 else qfbQ
                 Q1 += float(area * value)
                 if save_trace:
                     self._wtrace[6].append(w + tire_move)
@@ -659,7 +673,7 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 qfbQ = self._qfb.Q(*mid_w)
-                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                value = qfbQ ** 2 - rbv * qfbQ + rbv if qfbQ > 0.0 else qfbQ
                 Q1 += float(area * value)
                 if save_trace:
                     tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
@@ -678,7 +692,7 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 qfbQ = self._qfb.Q(*mid_w)
-                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                value = qfbQ ** 2 - rbv * qfbQ + rbv if qfbQ > 0.0 else qfbQ
                 Q1 += float(area * value)
                 if save_trace:
                     tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
@@ -697,7 +711,7 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 qfbQ = self._qfb.Q(*mid_w)
-                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                value = qfbQ ** 2 - rbv * qfbQ + rbv if qfbQ > 0.0 else qfbQ
                 Q1 += float(area * value)
                 if save_trace:
                     tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
@@ -716,7 +730,7 @@ class VehicleTrajectoryBuilder:
                 area = (outer_r ** 2 - inner_r ** 2) * abs(ca) / 2.0
                 mid_w = rel_mid_w + co
                 qfbQ = self._qfb.Q(*mid_w)
-                value = qfbQ ** 2 - rbm * qfbQ + rbm if qfbQ > 0.0 else qfbQ
+                value = qfbQ ** 2 - rbv * qfbQ + rbv if qfbQ > 0.0 else qfbQ
                 Q1 += float(area * value)
                 if save_trace:
                     tire_move = rel_mid_w / np.linalg.norm(rel_mid_w)
@@ -729,15 +743,16 @@ class VehicleTrajectoryBuilder:
         # Q1: [0.0 .. 4 * wheel * w]
         # Q2: [qfb.w .. sinusoidal_length]
         # Q3: [0.0 .. 0.1-ish]
-        Q1 = Q1 / (4.0 * self._qfb.w * self._car.wheel) * 100.0
-        Q2 = - Q2 * 0.5
-        Q3 = - Q3 * 100.0
+        Q1 = Q1 / (4.0 * self._qfb.w * self._car.wheel) * Q1_SCALE
+        Q2 = - Q2 * Q2_SCALE
+        Q3 = - Q3 * Q3_SCALE
 
         res = Q1 + Q2 + Q3
 
         return res, (Q1, Q2, Q3)
 
-    def train_trajectory(self, attempts = 5, points = 10, miles_per_point = 10):
+    def train_trajectory(self, attempts = DEFAULT_ATTEMPTS, points = 
+        DEFAULT_POINTS, miles_per_point = DEFAULT_MILES_PER_POINT):
         """
         Trains the spline so that it has the best quality.
         """
@@ -779,7 +794,7 @@ class VehicleTrajectoryBuilder:
                         log("Attempt #{}: jump = {}, quality = {} {}".format(
                             attempt + 1, jump_step, self._qat, self._qs))
                         # self.show()
-                jump_step *= 0.5
+                jump_step *= JUMP_STEP_MULTIPLIER
             sys.stdout.write("\n")
 
             if self._qat > best_qat:
@@ -836,7 +851,7 @@ class VehicleTrajectoryBuilder:
         plt.axis([Q_x[0], Q_x[-1], Q_y[0], Q_y[-1]])
         plt.show()
 
-    def save_to_file(self, filename, scale = 1):
+    def save_to_file(self, filename, scale = DEFAULT_SAVE_TO_FILE_SCALE):
         """
         Saves an image of the terrain combined with the trajectory curves.
         """
@@ -987,14 +1002,17 @@ if __name__ == '__main__':
     # Tester().test_quality_along_trajectory()
     # Tester().test_train_trajectory()
 
-    main('samples/3.png')
+    main('samples/2.png')
     # main('samples/3.png')
     pass
 
-# TODO 3: implement various checks and validations for ALL methods
+# TODO 3: make filename a console call argument
 # TODO 3: make global constants (parameters of the algo)
-# TODO 3: add information messages to console
 # TODO 3: optimize code
-# TODO 3: implement saving to file with all 4 wheels
-# TODO 3: split into several files (one file - one class)
-# TODO 3: clean deprecated methods
+# TODO 3: check if goes beyond the left-right borders
+
+# TODO 4: implement various checks and validations for ALL methods
+# TODO 4: add information messages to console
+# TODO 4: implement saving to file with all 4 wheels
+# TODO 4: split into several files (one file - one class)
+# TODO 4: clean deprecated methods
