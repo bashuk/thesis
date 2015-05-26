@@ -732,7 +732,7 @@ class VehicleTrajectoryBuilder:
         Q2 = - Q2 * 0.5
         Q3 = - Q3 * 100.0
 
-        res = Q1 + Q2
+        res = Q1 + Q2 + Q3
 
         return res, (Q1, Q2, Q3)
 
@@ -740,7 +740,6 @@ class VehicleTrajectoryBuilder:
         """
         Trains the spline so that it has the best quality.
         """
-        # TODO 2: try training softly
         miles = points * miles_per_point
 
         # Choosing from given number of random trajectories
@@ -758,22 +757,27 @@ class VehicleTrajectoryBuilder:
 
             self._generate_random_trajectory(points, miles_per_point)
             while jump_step > threshold:
-                for point in xrange(1, points):
-                    y = copy.deepcopy(self._sb._y)
-                    init_point_y = y[point]
+                changed = True
+                while changed:
+                    changed = False
+                    for point in xrange(1, points):
+                        y = copy.deepcopy(self._sb._y)
+                        init_point_y = y[point]
 
-                    # trying to jump up
-                    y[point] = init_point_y + jump_step
-                    self._try_alternative_trajectory(x, y, miles)
-                    # trying to jump down
-                    y[point] = init_point_y - jump_step
-                    self._try_alternative_trajectory(x, y, miles)
+                        # trying to jump up
+                        y[point] = init_point_y + jump_step
+                        if self._try_alternative_trajectory(x, y, miles):
+                            changed = True
+                        # trying to jump down
+                        y[point] = init_point_y - jump_step
+                        if self._try_alternative_trajectory(x, y, miles):
+                            changed = True
 
-                    # Clear current line, then write again
-                    sys.stdout.write('\x1b[2K\r')
-                    log("Attempt #{}: jump = {}, quality = {} {}".format(
-                        attempt + 1, jump_step, self._qat, self._qs))
-                    # self.show()
+                        # Clear current line, then write again
+                        sys.stdout.write('\x1b[2K\r')
+                        log("Attempt #{}: jump = {}, quality = {} {}".format(
+                            attempt + 1, jump_step, self._qat, self._qs))
+                        # self.show()
                 jump_step *= 0.5
             sys.stdout.write("\n")
 
@@ -826,7 +830,7 @@ class VehicleTrajectoryBuilder:
             wy = [w[1] for w in trace]
             plt.plot(wx, wy, 'c--')
 
-        plt.title('Optimal trajectory')
+        plt.title('Optimal trajectory for a self-driving car')
         plt.axis([Q_x[0], Q_x[-1], Q_y[0], Q_y[-1]])
         plt.show()
 
@@ -901,14 +905,14 @@ class Tester:
         plt.plot(x, y, 'b--', x, z, 'g', mx, my, 'ro')
         plt.show()
 
-    def test_image_loading(self, filename = 'samples/2_holes.png'):
+    def test_image_loading(self, filename = 'samples/2.png'):
         qfb = QualityFunctionBuilder()
         qfb.load_from_image(filename)
         print qfb.w, qfb.h
         print qfb._im[0][0], qfb._im[400][100]
         print qfb._im[220][170], qfb._im[625][50]
 
-    def test_Q_calculation(self, filename = 'samples/2_holes.png'):
+    def test_Q_calculation(self, filename = 'samples/2.png'):
         qfb = QualityFunctionBuilder()
         qfb.load_from_image(filename)
         qfb.set_custom_terrain_size((2403, 1993))
@@ -918,7 +922,7 @@ class Tester:
         plt.imshow(img)
         plt.show()
 
-    def test_trajectory_drawing(self, filename = 'samples/2_holes.png'):
+    def test_trajectory_drawing(self, filename = 'samples/2.png'):
         qfb = QualityFunctionBuilder()
         qfb.load_from_image(filename)
         car = CarBuilder()
@@ -928,7 +932,7 @@ class Tester:
 
     def test_quality_along_trajectory(self):
         qfb = QualityFunctionBuilder()
-        qfb.load_from_image('samples/2_holes.png')
+        qfb.load_from_image('samples/2.png')
         qfb.set_custom_terrain_size((1500, 300))
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
@@ -953,7 +957,7 @@ class Tester:
     # @profilehooks.profile
     def test_train_trajectory(self):
         qfb = QualityFunctionBuilder()
-        qfb.load_from_image('samples/2_holes.png')
+        qfb.load_from_image('samples/2.png')
         qfb.set_custom_terrain_size((1500, 300))
         car = CarBuilder()
         vtb = VehicleTrajectoryBuilder(qfb, car)
@@ -978,11 +982,11 @@ if __name__ == '__main__':
     # Tester().test_image_loading()
     # Tester().test_Q_calculation()
     # Tester().test_trajectory_drawing()
-    Tester().test_quality_along_trajectory()
+    # Tester().test_quality_along_trajectory()
     # Tester().test_train_trajectory()
 
-    main('samples/2_holes.png')
-    # main('samples/many_holes.png')
+    main('samples/3.png')
+    # main('samples/3.png')
     pass
 
 # TODO 3: implement various checks and validations for ALL methods
