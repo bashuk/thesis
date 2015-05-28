@@ -382,6 +382,7 @@ class QualityFunctionBuilder:
 
         # From now on, coordinates here must be strictly inside the image:
         # 0.0 < x < _imw, 0.0 < y < _imh
+        return self._im[int(x)][int(y)] # optimization
         p1 = (int(x) + 1, int(y))
         p2 = (int(x), int(y) + 1)
         if x - int(x) + y - int(y) <= 1.0:
@@ -1025,10 +1026,9 @@ if __name__ == '__main__':
     # main('samples/3.png')
     pass
 
-# TODO 3: optimize code
-
 # TODO 4: implement various checks and validations for ALL methods
 # TODO 4: add information messages to console
 # TODO 4: implement saving to file with all 4 wheels
 # TODO 4: split into several files (one file - one class)
 # TODO 4: clean deprecated methods
+# TODO 4: make convenient command line arguments
