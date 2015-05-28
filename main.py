@@ -540,6 +540,14 @@ class VehicleTrajectoryBuilder:
             tire_move = (self._car.wheel * 0.5) * np.array(
                     [np.cos(a1 + np.pi * 0.5), np.sin(a1 + np.pi * 0.5)])
 
+            # Checking if we are not going beyond the road lane
+            low_limit = 0.0 + (self._car.wheel + self._car.width) * 0.5
+            high_limit = self._qfb.h - (self._car.wheel + self._car.width) * 0.5
+            if start[1] < low_limit or start[1] > high_limit or \
+                (start + front_move)[1] < low_limit or \
+                (start + front_move)[1] > high_limit:
+                Q1 -= INFINITY
+
             # rbv = road bottom value
             # When Q(x, y) == 1.0, we want to take this point, so it counts
             # as 1.0.
@@ -1012,7 +1020,6 @@ if __name__ == '__main__':
     pass
 
 # TODO 3: optimize code
-# TODO 3: check if goes beyond the left-right borders
 
 # TODO 4: implement various checks and validations for ALL methods
 # TODO 4: add information messages to console
