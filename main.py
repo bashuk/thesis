@@ -25,16 +25,22 @@ __status__ = "Development"
 
 # Constants
 DEBUG = True
+
 INFINITY = 10 ** 9
 EPSILON = 10 ** -5
+
 DEFAULT_INTEGRATION_PIECES_PER_MILE = 10
 DEFAULT_MILES_PER_POINT = 10
 DEFAULT_POINTS = 10
 DEFAULT_ATTEMPTS = 5
 DEFAULT_SAVE_TO_FILE_SCALE = 1.0
 DEFAULT_FILENAME = 'samples/3.png'
-ROAD_BOTTOM_VALUE = -100.0
+
+JUMP_STEP_INITIAL_VALUE = 33.0
+JUMPING_THRESHOLD = 1.0
 JUMP_STEP_MULTIPLIER = 0.5
+
+ROAD_BOTTOM_VALUE = -100.0
 Q1_SCALE = 100.0
 Q2_SCALE = 0.5
 Q3_SCALE = 100.0
@@ -760,7 +766,7 @@ class VehicleTrajectoryBuilder:
 
         return res, (Q1, Q2, Q3)
 
-    # @profilehooks.profile
+    @profilehooks.profile
     def train_trajectory(self, attempts = DEFAULT_ATTEMPTS, points = 
         DEFAULT_POINTS, miles_per_point = DEFAULT_MILES_PER_POINT):
         """
@@ -778,8 +784,8 @@ class VehicleTrajectoryBuilder:
         for attempt in xrange(attempts):
             # These two parameters define the process of optimization
             # Also, they define the number of iterations
-            jump_step = self._car.wheel
-            threshold = 1.0
+            jump_step = JUMP_STEP_INITIAL_VALUE
+            threshold = JUMPING_THRESHOLD
 
             self._generate_random_trajectory(points, miles_per_point)
             while jump_step > threshold:
@@ -999,7 +1005,7 @@ def main(filename):
     car = CarBuilder()
 
     vtb = VehicleTrajectoryBuilder(qfb, car)
-    vtb.train_trajectory(attempts = 5)
+    vtb.train_trajectory(attempts = DEFAULT_ATTEMPTS)
     vtb.show()
 
 if __name__ == '__main__':
