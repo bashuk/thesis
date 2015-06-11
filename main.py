@@ -326,7 +326,7 @@ class QualityFunctionBuilder:
             self.__init__()
             raise Exception("Image size should be at least 2x2.")
         self._im = [
-            [float(pix[x, y]) / 255.0 for y in xrange(self._imh)] 
+            [float(pix[x, y]) / 255.0 for y in xrange(self._imh - 1, -1, -1)] 
             for x in xrange(self._imw)
         ]
 
